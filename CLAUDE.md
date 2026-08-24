@@ -18,6 +18,7 @@ only what's specific to this game.
 
 | Topic | File |
 |-------|------|
+| **Mistakes I've made here, and the rules that prevent a repeat** | [`.claude/MISTAKES.md`](.claude/MISTAKES.md) |
 | Open work: bootstrap steps still outstanding, release blockers | [`.claude/backlog.md`](.claude/backlog.md) |
 | SFTP/deploy, test tables, framework conventions, PHP-lint scar | [`../.claude/`](../.claude/) (shared) |
 
