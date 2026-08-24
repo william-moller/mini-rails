@@ -20,8 +20,13 @@ Not ranked.
 - **Copy the `bga-cards` / `bga-animations` typings** from `../ugly-christmas-sweater/` if the client
   needs them (`bga-framework.d.ts` came with the skeleton). Dev-only; they never deploy.
 - **Set project status** to "development started" in Control Panel → Manage Games.
-- **Write `.claude/game-rules.md`** from the rulebook Will is supplying, and `.claude/architecture.md`
-  once the state machine exists.
+- **Get the 2nd-edition (2025) rulebook.** [`game-rules.md`](game-rules.md) documents the **1st
+  edition (2017, 3–5 players)** because that is the only rulebook we have; the 2nd edition reportedly
+  supports **1–5 players** and is not on BoardGameGeek. Until we have it we cannot implement solo or
+  2-player at all, and cannot confirm that disc counts, terrain values or the 6-round length are
+  unchanged. Worth asking BGA which edition the licence covers — that answer may also settle the
+  `players` list in `gameinfos.jsonc`.
+- **Write `.claude/architecture.md`** once the state machine exists.
 
 ## Before the first test table
 

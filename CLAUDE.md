@@ -20,12 +20,13 @@ only what's specific to this game.
 |-------|------|
 | **Mistakes I've made here, and the rules that prevent a repeat** | [`.claude/MISTAKES.md`](.claude/MISTAKES.md) |
 | Open work: bootstrap steps still outstanding, release blockers | [`.claude/backlog.md`](.claude/backlog.md) |
+| Game rules, components, scoring — **and the 1st/2nd edition caveat** | [`.claude/game-rules.md`](.claude/game-rules.md) |
+| Official rulebook, 1st edition (PDF) | [`docs/Mini_Rails_Rules_ENG-0615.pdf`](docs/Mini_Rails_Rules_ENG-0615.pdf) |
 | **Abandoned prior implementation of this same game** (study, do not fork) | [`../_reference/minirails/CLAUDE.md`](../_reference/minirails/CLAUDE.md) |
 | SFTP/deploy, test tables, framework conventions, PHP-lint scar | [`../.claude/`](../.claude/) (shared) |
 
-`.claude/architecture.md` and `.claude/game-rules.md` follow the same layout as
-`../ugly-christmas-sweater/.claude/`; write them once there is code and a rulebook to describe,
-not before.
+`.claude/architecture.md` follows the same layout as `../ugly-christmas-sweater/.claude/`; write it
+once there is a state machine to describe, not before.
 
 ## Project facts
 
