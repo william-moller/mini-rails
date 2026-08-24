@@ -1,0 +1,98 @@
+@use 'tokens';
+
+/*
+ * Player Profit Board — placeholder.
+ *
+ * A -10..+10 track (21 cells). A bought stock enters at 0 and slides as its company is built on.
+ * Values are capped at both ends (rulebook FAQ Q2): a stock at a cap stays put while other stocks of
+ * the same colour still move.
+ *
+ * The positive/negative tint is not decoration. At game end, taxed companies keep their POSITIVE
+ * stocks and lose their negative ones, while untaxed companies do the reverse — so "which side of
+ * zero is this stock on" is the single most-read fact on the board.
+ *
+ * Multiple stocks can share a cell (several companies at the same value), so cells stack.
+ */
+
+.mr-profit-board {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--mr-radius);
+  border: 1px solid var(--mr-line);
+  border-left: 4px solid var(--mr-player, #607d8b);
+  background: var(--mr-surface);
+  width: max-content;
+}
+
+.mr-profit-board__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mr-profit-board__name {
+  font-weight: 700;
+  color: var(--mr-player, var(--mr-ink));
+}
+
+.mr-profit-board__actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.mr-profit-track {
+  display: flex;
+  gap: 2px;
+}
+
+.mr-profit-cell {
+  width: var(--mr-profit-cell);
+  min-height: calc(var(--mr-profit-cell) * 2);
+  box-sizing: border-box;
+  border: 1px solid var(--mr-line);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column-reverse; // stack stocks upward from the value label
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--mr-surface);
+}
+
+.mr-profit-cell--neg { background: var(--mr-profit-neg); }
+.mr-profit-cell--pos { background: var(--mr-profit-pos); }
+
+// Zero is where every bought stock enters — worth being unmistakable.
+.mr-profit-cell--zero {
+  background: var(--mr-surface);
+  border-color: var(--mr-ink);
+  border-width: 2px;
+}
+
+// The caps are hard stops, not just the ends of the drawing.
+.mr-profit-cell--cap {
+  border-color: color-mix(in srgb, var(--mr-ink) 65%, transparent);
+  border-width: 2px;
+}
+
+.mr-profit-cell__value {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--mr-ink-dim);
+  padding-top: 1px;
+}
+
+.mr-profit-cell--zero .mr-profit-cell__value { color: var(--mr-ink); }
+
+/*
+ * End-of-game elimination preview. Applied to stocks that WOULD be discarded under current taxation
+ * status — taxed company + negative stock, or untaxed company + positive stock. Purely informational
+ * and easy to get backwards, so it should never be the only cue for a scoring decision.
+ */
+.mr-disc.is-doomed {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}

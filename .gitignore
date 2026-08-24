@@ -22,5 +22,8 @@ node_modules/
 Thumbs.db
 .DS_Store
 
+# ── Generated dev-only preview bundle (rebuilt by `npm run build`; never deployed) ──
+scripts/preview/preview.js
+
 # ── Throwaway scratch scripts run from the repo root (need node_modules resolution) ──
 _tmp-*

@@ -16,7 +16,14 @@ Not ranked.
 - **Put a real copyright header in the sources.** `<Your name here> <Your email address here>` sits in
   `modules/php/*.php` and `src/scss/Game.scss`; the pre-release checklist wants a real name in every
   source file. `rollup.config.mjs` already injects one into the built bundle.
-- **Request art files** via the Request Art Files button on the studio license page.
+- **Swap the CSS placeholders for the real art** once the requested art files arrive. Every component
+  is currently drawn with CSS shapes (see `src/scss/_tokens.scss`). The intended swap is
+  background-image sprites inside `_hex.scss` and `_disc.scss`; layout, sizing and class names are
+  meant to survive it. Remove the `.mr-placeholder-banner` at the same time.
+- **Settle the map shape.** `provisionalMap()` in `src/ts/hex.ts` assumes 7 tiles x 7 hexes = 49
+  because the rulebook never says whether a "map tile" is one hex or a flower of seven, and 7 single
+  hexes cannot absorb 60-72 discs. The art files should settle it. It is deliberately the only place
+  the map shape is defined.
 - **Copy the `bga-cards` / `bga-animations` typings** from `../ugly-christmas-sweater/` if the client
   needs them (`bga-framework.d.ts` came with the skeleton). Dev-only; they never deploy.
 - **Set project status** to "development started" in Control Panel → Manage Games.

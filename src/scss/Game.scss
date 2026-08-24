@@ -1,7 +1,7 @@
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * minirailsmospinach implementation : © <Your name here> <Your email address here>
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
  *
  * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
@@ -9,54 +9,42 @@
  */
 
 /*
-    This is the CSS stylesheet of your game User Interface.
-    
-    Styles defined on this file will be applied to HTML elements you create (in Game.js).
-    
-    Usually, you are using CSS to:
-    
-    1°) define the overall layout of your game
-        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
 
-    2°) create your CSS-sprites:
-        All images of your games should be gathered into a small number of image files. Then, using
-        background-image and background-position CSS properties, you create HTML blocks that can 
-        display these images correctly (see example below).
-    
-    3°) ... anything else:
-        It is really easy to add and remove CSS classes dynamically from your Javascript with
-        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
-        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
-        very often, using CSS classes for the logic of your user interface allow you to do complex
-        thing easily.
-        
-        
-     Note: on the production platform, this file will be compressed and comments will be removed.
-           Consequently, don't hesitate to put as many comments as necessary.
-*/
+@use 'tokens';
+@use 'hex';
+@use 'disc';
+@use 'market';
+@use 'profit-board';
 
+.mr-root {
+  color: var(--mr-ink);
+  font-family: inherit;
+}
 
-/********* You can start writing your SCSS below this line: **********/
-
-
-/*
-    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
-
-    .white_token {
-        background-image: url('img/tokens.png');
-        background-position: 0px 0px;
-    }
-    .black_token {
-        background-image: url('img/tokens.png');
-        background-position: -20px 0px;
-    }
-    .token {
-        width: 20px;
-        height: 20px;
-        background-repeat: none;
-    }
-*/
-
-
-
-
+// Dev-only banner so a placeholder build is never mistaken for finished art on a test table.
+.mr-placeholder-banner {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: var(--mr-radius);
+  background: repeating-linear-gradient(45deg, #ffe082 0 8px, #ffca28 8px 16px);
+  border: 1px solid #f9a825;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4e342e;
+}

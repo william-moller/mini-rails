@@ -1,0 +1,104 @@
+@use 'sass:map';
+@use 'tokens';
+
+/*
+ * Hex map — placeholder.
+ *
+ * Pointy-top hexes positioned by axial (q, r) coordinates, which is deliberate: the abandoned
+ * reference implementation used row-parity offset coordinates and needed two separate neighbour
+ * tables (even row / odd row). Axial needs one, and converts to cube for distance. See src/ts/hex.ts.
+ *
+ * The board sets --mr-q / --mr-r per hex; positioning arithmetic lives here so TypeScript never
+ * computes pixels.
+ */
+
+.mr-hex-board {
+  position: relative;
+  margin: 0 auto;
+  // Sized by the client once the map extent is known; see renderHexBoard() in src/ts/components.ts.
+}
+
+.mr-hex {
+  position: absolute;
+  width: var(--mr-hex-w);
+  height: var(--mr-hex-h);
+
+  // Axial -> pixel, pointy-top:
+  //   x = w * (q + r/2)
+  //   y = h * 3/4 * r
+  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * (var(--mr-q) + var(--mr-r) / 2));
+  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-r));
+
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  user-select: none;
+
+  // Placeholder scenery. Real art replaces this with a background-image sprite.
+  background: var(--mr-hex-bg, #cfd8dc);
+  color: var(--mr-hex-ink, #1b1b1b);
+}
+
+// One class per terrain, carrying its placeholder colour and printed value.
+@each $name, $spec in tokens.$terrains {
+  .mr-hex--#{$name} {
+    --mr-hex-bg: #{map.get($spec, color)};
+    --mr-hex-ink: #{map.get($spec, ink)};
+  }
+}
+
+// The printed value. Real art prints it as white/red spots (confirmed from the reference's map
+// artwork); a number is clearer while developing and is trivially swapped for dots later.
+.mr-hex__value {
+  font-weight: 700;
+  font-size: calc(var(--mr-hex-w) * 0.3);
+  line-height: 1;
+  color: var(--mr-hex-ink);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  pointer-events: none;
+}
+
+.mr-hex__name {
+  position: absolute;
+  bottom: 12%;
+  font-size: calc(var(--mr-hex-w) * 0.13);
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+  color: var(--mr-hex-ink);
+  pointer-events: none;
+}
+
+// A hex holding a built disc hides its label so the disc reads cleanly.
+.mr-hex.is-occupied .mr-hex__name { opacity: 0; }
+
+// Legal build target during the Build Tracks action.
+.mr-hex.is-selectable {
+  cursor: pointer;
+  outline: 3px solid var(--mr-focus);
+  outline-offset: -3px;
+  filter: brightness(1.08);
+}
+
+.mr-hex.is-selected {
+  outline: 4px solid var(--mr-focus);
+  outline-offset: -4px;
+}
+
+// Company frames sit outside the map edge; a blocked company's disc is placed here for -1.
+.mr-frame {
+  display: grid;
+  place-items: center;
+  width: var(--mr-hex-w);
+  height: var(--mr-hex-h);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--mr-frame-color, #90a4ae) 0 6px,
+    color-mix(in srgb, var(--mr-frame-color, #90a4ae) 70%, #000) 6px 12px
+  );
+}
+
+@each $name, $color in tokens.$companies {
+  .mr-frame--#{$name} { --mr-frame-color: #{$color}; }
+}

@@ -1,0 +1,95 @@
+@use 'tokens';
+
+/*
+ * Central Market Board — placeholder.
+ *
+ * Three tracks, and the relationship between them is the mechanism:
+ *
+ *   order track   holds player markers, left-to-right = turn order this round
+ *   market track  holds 2*players+1 discs; players replace a disc with their marker to act
+ *   taxed area    6 spaces, one disc per round
+ *
+ * At end of round the single unchosen disc leaves the market track for the taxed area, markers slide
+ * left to close the gap, and THE MARKET TRACK BECOMES NEXT ROUND'S ORDER TRACK. So both tracks are
+ * the same physical length (2*players+1) and the two roles swap. The layout must make that swap
+ * legible, which is why they are stacked and identically sized rather than styled as separate things.
+ */
+
+.mr-market {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--mr-radius);
+  background: var(--mr-surface-sunk);
+  border: 1px solid var(--mr-line);
+  width: max-content;
+}
+
+.mr-track {
+  display: grid;
+  grid-template-columns: 110px auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.mr-track__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mr-ink-dim);
+  text-align: right;
+}
+
+.mr-track__cells {
+  display: flex;
+  gap: 4px;
+}
+
+.mr-cell {
+  width: var(--mr-cell);
+  height: var(--mr-cell);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px dashed var(--mr-line);
+  background: var(--mr-surface);
+}
+
+.mr-cell.is-empty {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    rgb(0 0 0 / 4%) 4px 8px
+  );
+}
+
+.mr-cell.is-selectable {
+  cursor: pointer;
+  border-style: solid;
+  border-color: var(--mr-focus);
+}
+
+// The turn-order reading of the order track: leftmost acts next.
+.mr-track--order .mr-cell { border-radius: 50% 50% 4px 4px; }
+
+.mr-track--taxed .mr-cell {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--mr-line) 60%, #000);
+  background: var(--mr-surface-sunk);
+}
+
+// Marks which order-track space acts next.
+.mr-cell.is-current {
+  border-color: var(--mr-focus);
+  border-style: solid;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mr-focus) 35%, transparent);
+}
+
+.mr-market__note {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--mr-ink-dim);
+  font-style: italic;
+}

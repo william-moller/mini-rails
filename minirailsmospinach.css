@@ -2,53 +2,589 @@
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * minirailsmospinach implementation : © <Your name here> <Your email address here>
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
  *
  * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
  * -----
  */
 /*
-    This is the CSS stylesheet of your game User Interface.
-
-    Styles defined on this file will be applied to HTML elements you create (in Game.js).
-
-    Usually, you are using CSS to:
-
-    1°) define the overall layout of your game
-        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
-
-    2°) create your CSS-sprites:
-        All images of your games should be gathered into a small number of image files. Then, using
-        background-image and background-position CSS properties, you create HTML blocks that can 
-        display these images correctly (see example below).
-
-    3°) ... anything else:
-        It is really easy to add and remove CSS classes dynamically from your Javascript with
-        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
-        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
-        very often, using CSS classes for the logic of your user interface allow you to do complex
-        thing easily.
-
-
-     Note: on the production platform, this file will be compressed and comments will be removed.
-           Consequently, don't hesitate to put as many comments as necessary.
-*/
-/********* You can start writing your SCSS below this line: **********/
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
 /*
-    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
+ * Design tokens — placeholder palette and sizing.
+ *
+ * ⚠️ EVERYTHING HERE IS A PLACEHOLDER. No art files exist yet, so every component is drawn with CSS
+ * shapes. When the real art arrives from BGA's "Request Art Files", the sprite sheets replace the
+ * backgrounds in _hex.scss / _disc.scss; the layout, sizing and class names should survive.
+ *
+ * Company colour NAMES come from the rulebook's scoring example ("the Red, White, Tan and Blue
+ * companies ... Yellow and Gray companies"), so the set of six is rules-derived. The hex VALUES below
+ * are our own choices — do not treat them as the publisher's palette.
+ */
+:root {
+  --mr-hex-w: 72px;
+  --mr-hex-h: calc(var(--mr-hex-w) * 1.1547);
+  --mr-hex-gap: 2px;
+  --mr-disc: 30px;
+  --mr-disc-sm: 18px;
+  --mr-marker: 26px;
+  --mr-cell: 38px;
+  --mr-profit-cell: 26px;
+  --mr-ink: #1b1b1b;
+  --mr-ink-dim: #5f6b72;
+  --mr-line: #98a6ad;
+  --mr-surface: #ffffff;
+  --mr-surface-sunk: #eceff1;
+  --mr-profit-pos: #e3f2e6;
+  --mr-profit-neg: #fbe6e6;
+  --mr-focus: #ff8f00;
+  --mr-radius: 6px;
+}
 
-    .white_token {
-        background-image: url('img/tokens.png');
-        background-position: 0px 0px;
-    }
-    .black_token {
-        background-image: url('img/tokens.png');
-        background-position: -20px 0px;
-    }
-    .token {
-        width: 20px;
-        height: 20px;
-        background-repeat: none;
-    }
-*/
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/*
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
+/*
+ * Hex map — placeholder.
+ *
+ * Pointy-top hexes positioned by axial (q, r) coordinates, which is deliberate: the abandoned
+ * reference implementation used row-parity offset coordinates and needed two separate neighbour
+ * tables (even row / odd row). Axial needs one, and converts to cube for distance. See src/ts/hex.ts.
+ *
+ * The board sets --mr-q / --mr-r per hex; positioning arithmetic lives here so TypeScript never
+ * computes pixels.
+ */
+.mr-hex-board {
+  position: relative;
+  margin: 0 auto;
+}
+
+.mr-hex {
+  position: absolute;
+  width: var(--mr-hex-w);
+  height: var(--mr-hex-h);
+  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * (var(--mr-q) + var(--mr-r) / 2));
+  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-r));
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  user-select: none;
+  background: var(--mr-hex-bg, #cfd8dc);
+  color: var(--mr-hex-ink, #1b1b1b);
+}
+
+.mr-hex--big-city {
+  --mr-hex-bg: #455a64;
+  --mr-hex-ink: #ffffff;
+}
+
+.mr-hex--suburbs {
+  --mr-hex-bg: #b0bec5;
+  --mr-hex-ink: #1b2a33;
+}
+
+.mr-hex--farmland {
+  --mr-hex-bg: #d9b310;
+  --mr-hex-ink: #2b2200;
+}
+
+.mr-hex--plains {
+  --mr-hex-bg: #aed581;
+  --mr-hex-ink: #1e3312;
+}
+
+.mr-hex--forest {
+  --mr-hex-bg: #2e7d32;
+  --mr-hex-ink: #ffffff;
+}
+
+.mr-hex--lake {
+  --mr-hex-bg: #4fa3d1;
+  --mr-hex-ink: #05263a;
+}
+
+.mr-hex--mountains {
+  --mr-hex-bg: #8d6e63;
+  --mr-hex-ink: #ffffff;
+}
+
+.mr-hex__value {
+  font-weight: 700;
+  font-size: calc(var(--mr-hex-w) * 0.3);
+  line-height: 1;
+  color: var(--mr-hex-ink);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.mr-hex__name {
+  position: absolute;
+  bottom: 12%;
+  font-size: calc(var(--mr-hex-w) * 0.13);
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+  color: var(--mr-hex-ink);
+  pointer-events: none;
+}
+
+.mr-hex.is-occupied .mr-hex__name {
+  opacity: 0;
+}
+
+.mr-hex.is-selectable {
+  cursor: pointer;
+  outline: 3px solid var(--mr-focus);
+  outline-offset: -3px;
+  filter: brightness(1.08);
+}
+
+.mr-hex.is-selected {
+  outline: 4px solid var(--mr-focus);
+  outline-offset: -4px;
+}
+
+.mr-frame {
+  display: grid;
+  place-items: center;
+  width: var(--mr-hex-w);
+  height: var(--mr-hex-h);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: repeating-linear-gradient(45deg, var(--mr-frame-color, #90a4ae) 0 6px, color-mix(in srgb, var(--mr-frame-color, #90a4ae) 70%, #000) 6px 12px);
+}
+
+.mr-frame--red {
+  --mr-frame-color: #c62828;
+}
+
+.mr-frame--white {
+  --mr-frame-color: #f7f5f2;
+}
+
+.mr-frame--tan {
+  --mr-frame-color: #d2a567;
+}
+
+.mr-frame--blue {
+  --mr-frame-color: #1565c0;
+}
+
+.mr-frame--yellow {
+  --mr-frame-color: #f5c518;
+}
+
+.mr-frame--gray {
+  --mr-frame-color: #78909c;
+}
+
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/*
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
+/*
+ * Company discs and player order markers — placeholder.
+ *
+ * A disc is the game's universal noun: it sits in the bag, on the market track, on a map hex as
+ * built track, on a company frame, in the taxed area, and on a Profit Board as a held stock. One
+ * class, three sizes, no separate assets.
+ *
+ * Discs are CIRCLES and order markers are ROUNDED SQUARES. That shape difference is load-bearing:
+ * during the Action Phase both sit on the same market track, and a player must be able to tell at a
+ * glance which spaces still hold discs (choosable) and which already hold markers (taken).
+ */
+.mr-disc {
+  width: var(--mr-disc);
+  height: var(--mr-disc);
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  background: var(--mr-company, #b0bec5);
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.22), 0 1px 2px rgba(0, 0, 0, 0.28);
+  flex: none;
+}
+
+.mr-disc--sm {
+  width: var(--mr-disc-sm);
+  height: var(--mr-disc-sm);
+  box-shadow: inset 0 -1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.mr-disc--on-hex {
+  width: calc(var(--mr-hex-w) * 0.46);
+  height: calc(var(--mr-hex-w) * 0.46);
+}
+
+.mr-disc--red {
+  --mr-company: #c62828;
+}
+
+.mr-disc--white {
+  --mr-company: #f7f5f2;
+}
+
+.mr-disc--tan {
+  --mr-company: #d2a567;
+}
+
+.mr-disc--blue {
+  --mr-company: #1565c0;
+}
+
+.mr-disc--yellow {
+  --mr-company: #f5c518;
+}
+
+.mr-disc--gray {
+  --mr-company: #78909c;
+}
+
+.mr-disc.is-selectable {
+  cursor: pointer;
+  outline: 3px solid var(--mr-focus);
+  outline-offset: 2px;
+}
+
+.mr-disc.is-selected {
+  outline: 3px solid var(--mr-focus);
+  outline-offset: 2px;
+  transform: translateY(-3px);
+}
+
+.mr-marker {
+  width: var(--mr-marker);
+  height: var(--mr-marker);
+  border-radius: 5px;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  background: var(--mr-player, #607d8b);
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.3);
+  flex: none;
+}
+
+.mr-action-tile {
+  display: grid;
+  place-items: center;
+  min-width: 68px;
+  padding: 6px 10px;
+  border-radius: var(--mr-radius);
+  border: 2px solid var(--mr-player, #607d8b);
+  background: var(--mr-surface);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mr-ink);
+}
+
+.mr-action-tile.is-spent {
+  border-style: dashed;
+  opacity: 0.4;
+  background: var(--mr-surface-sunk);
+  text-decoration: line-through;
+}
+
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/*
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
+/*
+ * Central Market Board — placeholder.
+ *
+ * Three tracks, and the relationship between them is the mechanism:
+ *
+ *   order track   holds player markers, left-to-right = turn order this round
+ *   market track  holds 2*players+1 discs; players replace a disc with their marker to act
+ *   taxed area    6 spaces, one disc per round
+ *
+ * At end of round the single unchosen disc leaves the market track for the taxed area, markers slide
+ * left to close the gap, and THE MARKET TRACK BECOMES NEXT ROUND'S ORDER TRACK. So both tracks are
+ * the same physical length (2*players+1) and the two roles swap. The layout must make that swap
+ * legible, which is why they are stacked and identically sized rather than styled as separate things.
+ */
+.mr-market {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--mr-radius);
+  background: var(--mr-surface-sunk);
+  border: 1px solid var(--mr-line);
+  width: max-content;
+}
+
+.mr-track {
+  display: grid;
+  grid-template-columns: 110px auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.mr-track__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mr-ink-dim);
+  text-align: right;
+}
+
+.mr-track__cells {
+  display: flex;
+  gap: 4px;
+}
+
+.mr-cell {
+  width: var(--mr-cell);
+  height: var(--mr-cell);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px dashed var(--mr-line);
+  background: var(--mr-surface);
+}
+
+.mr-cell.is-empty {
+  background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.04) 4px 8px);
+}
+
+.mr-cell.is-selectable {
+  cursor: pointer;
+  border-style: solid;
+  border-color: var(--mr-focus);
+}
+
+.mr-track--order .mr-cell {
+  border-radius: 50% 50% 4px 4px;
+}
+
+.mr-track--taxed .mr-cell {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--mr-line) 60%, #000);
+  background: var(--mr-surface-sunk);
+}
+
+.mr-cell.is-current {
+  border-color: var(--mr-focus);
+  border-style: solid;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mr-focus) 35%, transparent);
+}
+
+.mr-market__note {
+  grid-column: 1/-1;
+  font-size: 11px;
+  color: var(--mr-ink-dim);
+  font-style: italic;
+}
+
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/*
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
+/*
+ * Player Profit Board — placeholder.
+ *
+ * A -10..+10 track (21 cells). A bought stock enters at 0 and slides as its company is built on.
+ * Values are capped at both ends (rulebook FAQ Q2): a stock at a cap stays put while other stocks of
+ * the same colour still move.
+ *
+ * The positive/negative tint is not decoration. At game end, taxed companies keep their POSITIVE
+ * stocks and lose their negative ones, while untaxed companies do the reverse — so "which side of
+ * zero is this stock on" is the single most-read fact on the board.
+ *
+ * Multiple stocks can share a cell (several companies at the same value), so cells stack.
+ */
+.mr-profit-board {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--mr-radius);
+  border: 1px solid var(--mr-line);
+  border-left: 4px solid var(--mr-player, #607d8b);
+  background: var(--mr-surface);
+  width: max-content;
+}
+
+.mr-profit-board__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mr-profit-board__name {
+  font-weight: 700;
+  color: var(--mr-player, var(--mr-ink));
+}
+
+.mr-profit-board__actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.mr-profit-track {
+  display: flex;
+  gap: 2px;
+}
+
+.mr-profit-cell {
+  width: var(--mr-profit-cell);
+  min-height: calc(var(--mr-profit-cell) * 2);
+  box-sizing: border-box;
+  border: 1px solid var(--mr-line);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--mr-surface);
+}
+
+.mr-profit-cell--neg {
+  background: var(--mr-profit-neg);
+}
+
+.mr-profit-cell--pos {
+  background: var(--mr-profit-pos);
+}
+
+.mr-profit-cell--zero {
+  background: var(--mr-surface);
+  border-color: var(--mr-ink);
+  border-width: 2px;
+}
+
+.mr-profit-cell--cap {
+  border-color: color-mix(in srgb, var(--mr-ink) 65%, transparent);
+  border-width: 2px;
+}
+
+.mr-profit-cell__value {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--mr-ink-dim);
+  padding-top: 1px;
+}
+
+.mr-profit-cell--zero .mr-profit-cell__value {
+  color: var(--mr-ink);
+}
+
+/*
+ * End-of-game elimination preview. Applied to stocks that WOULD be discarded under current taxation
+ * status — taxed company + negative stock, or untaxed company + positive stock. Purely informational
+ * and easy to get backwards, so it should never be the only cue for a scoring decision.
+ */
+.mr-disc.is-doomed {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+
+.mr-root {
+  color: var(--mr-ink);
+  font-family: inherit;
+}
+
+.mr-placeholder-banner {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: var(--mr-radius);
+  background: repeating-linear-gradient(45deg, #ffe082 0 8px, #ffca28 8px 16px);
+  border: 1px solid #f9a825;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4e342e;
+}

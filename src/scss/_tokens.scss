@@ -1,0 +1,64 @@
+/*
+ * Design tokens — placeholder palette and sizing.
+ *
+ * ⚠️ EVERYTHING HERE IS A PLACEHOLDER. No art files exist yet, so every component is drawn with CSS
+ * shapes. When the real art arrives from BGA's "Request Art Files", the sprite sheets replace the
+ * backgrounds in _hex.scss / _disc.scss; the layout, sizing and class names should survive.
+ *
+ * Company colour NAMES come from the rulebook's scoring example ("the Red, White, Tan and Blue
+ * companies ... Yellow and Gray companies"), so the set of six is rules-derived. The hex VALUES below
+ * are our own choices — do not treat them as the publisher's palette.
+ */
+
+// ── Company colours ────────────────────────────────────────────────────────────────────────────
+// White, tan and yellow are light enough to vanish against a light table, so every disc gets a
+// border (see _disc.scss) rather than only the ones that obviously need it — a uniform rule is
+// easier to keep true than a per-colour exception.
+// Keys are QUOTED: red/white/blue/yellow/gray are CSS colour keywords, so unquoted sass reads them
+// as colour values rather than strings and mangles the generated class names.
+$companies: (
+  "red":    #c62828,
+  "white":  #f7f5f2,
+  "tan":    #d2a567,
+  "blue":   #1565c0,
+  "yellow": #f5c518,
+  "gray":   #78909c,
+);
+
+// ── Terrain ───────────────────────────────────────────────────────────────────────────────────
+// Keys are the rulebook's terrain names; the number is the printed value applied to every stock of
+// the built company (see .claude/game-rules.md). Colour is placeholder scenery.
+$terrains: (
+  big-city:  (value:  5, color: #455a64, ink: #ffffff),
+  suburbs:   (value:  3, color: #b0bec5, ink: #1b2a33),
+  farmland:  (value:  2, color: #d9b310, ink: #2b2200),
+  plains:    (value:  1, color: #aed581, ink: #1e3312),
+  forest:    (value: -1, color: #2e7d32, ink: #ffffff),
+  lake:      (value: -2, color: #4fa3d1, ink: #05263a),
+  mountains: (value: -3, color: #8d6e63, ink: #ffffff),
+);
+
+:root {
+  // Hex geometry. Pointy-top hexes in axial coordinates: --mr-hex-w is the flat-to-flat width and
+  // the height is w * 2/sqrt(3). Change --mr-hex-w alone to rescale the whole map.
+  --mr-hex-w: 72px;
+  --mr-hex-h: calc(var(--mr-hex-w) * 1.1547); // 2/sqrt(3)
+  --mr-hex-gap: 2px;
+
+  --mr-disc: 30px;
+  --mr-disc-sm: 18px;
+  --mr-marker: 26px;
+
+  --mr-cell: 38px;          // market / order / taxed track cell
+  --mr-profit-cell: 26px;   // profit board cell
+
+  --mr-ink: #1b1b1b;
+  --mr-ink-dim: #5f6b72;
+  --mr-line: #98a6ad;
+  --mr-surface: #ffffff;
+  --mr-surface-sunk: #eceff1;
+  --mr-profit-pos: #e3f2e6;
+  --mr-profit-neg: #fbe6e6;
+  --mr-focus: #ff8f00;
+  --mr-radius: 6px;
+}

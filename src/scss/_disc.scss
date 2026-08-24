@@ -1,0 +1,95 @@
+@use 'tokens';
+
+/*
+ * Company discs and player order markers — placeholder.
+ *
+ * A disc is the game's universal noun: it sits in the bag, on the market track, on a map hex as
+ * built track, on a company frame, in the taxed area, and on a Profit Board as a held stock. One
+ * class, three sizes, no separate assets.
+ *
+ * Discs are CIRCLES and order markers are ROUNDED SQUARES. That shape difference is load-bearing:
+ * during the Action Phase both sit on the same market track, and a player must be able to tell at a
+ * glance which spaces still hold discs (choosable) and which already hold markers (taken).
+ */
+
+.mr-disc {
+  width: var(--mr-disc);
+  height: var(--mr-disc);
+  border-radius: 50%;
+  box-sizing: border-box;
+  // Every disc gets a border, not just the pale ones. White, tan and yellow would otherwise
+  // disappear against a light table, and a uniform rule is easier to keep true than an exception.
+  border: 1px solid rgb(0 0 0 / 35%);
+  background: var(--mr-company, #b0bec5);
+  box-shadow: inset 0 -2px 3px rgb(0 0 0 / 22%), 0 1px 2px rgb(0 0 0 / 28%);
+  flex: none;
+}
+
+.mr-disc--sm {
+  width: var(--mr-disc-sm);
+  height: var(--mr-disc-sm);
+  box-shadow: inset 0 -1px 2px rgb(0 0 0 / 22%);
+}
+
+// On a hex, the disc is the built track marker and should fill more of the cell.
+.mr-disc--on-hex {
+  width: calc(var(--mr-hex-w) * 0.46);
+  height: calc(var(--mr-hex-w) * 0.46);
+}
+
+@each $name, $color in tokens.$companies {
+  .mr-disc--#{$name} { --mr-company: #{$color}; }
+}
+
+.mr-disc.is-selectable {
+  cursor: pointer;
+  outline: 3px solid var(--mr-focus);
+  outline-offset: 2px;
+}
+
+.mr-disc.is-selected {
+  outline: 3px solid var(--mr-focus);
+  outline-offset: 2px;
+  transform: translateY(-3px);
+}
+
+// ── Player order markers ──────────────────────────────────────────────────────────────────────
+// Player colours come from BGA at runtime (gamedatas.players[].color), so the client sets
+// --mr-player inline rather than us shipping a palette.
+
+.mr-marker {
+  width: var(--mr-marker);
+  height: var(--mr-marker);
+  border-radius: 5px;
+  box-sizing: border-box;
+  border: 1px solid rgb(0 0 0 / 45%);
+  background: var(--mr-player, #607d8b);
+  box-shadow: inset 0 -2px 3px rgb(0 0 0 / 25%), 0 1px 2px rgb(0 0 0 / 30%);
+  flex: none;
+}
+
+// ── Action tiles ──────────────────────────────────────────────────────────────────────────────
+// Two per player per round: Buy and Build. Removed from the Profit Board when spent, which is the
+// only record that an action has been used — so "spent" must be unmistakable, not a subtle fade.
+
+.mr-action-tile {
+  display: grid;
+  place-items: center;
+  min-width: 68px;
+  padding: 6px 10px;
+  border-radius: var(--mr-radius);
+  border: 2px solid var(--mr-player, #607d8b);
+  background: var(--mr-surface);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mr-ink);
+}
+
+.mr-action-tile.is-spent {
+  border-style: dashed;
+  opacity: 0.4;
+  background: var(--mr-surface-sunk);
+  text-decoration: line-through;
+}
