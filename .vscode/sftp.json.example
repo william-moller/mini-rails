@@ -1,0 +1,26 @@
+{
+  "name": "BGA Studio - Mini Rails",
+  "host": "1.studio.boardgamearena.com",
+  "port": 2022,
+  "username": "MoSpinach",
+  "privateKeyPath": "C:/Users/Will/.ssh/bga_studio",
+  "remotePath": "/<bga-project-name>/",
+  "uploadOnSave": true,
+  "ignore": [
+    "**/.git/**",
+    "**/.gitignore",
+    "**/.gitattributes",
+    "**/.vscode/**",
+    "**/.claude/**",
+    "**/CLAUDE.md",
+    "**/README.md",
+    "**/docs/**",
+    "**/node_modules/**",
+    "**/scripts/**",
+    "**/src/**",
+    "**/package.json",
+    "**/package-lock.json",
+    "**/tsconfig.json",
+    "**/rollup.config.mjs"
+  ]
+}
