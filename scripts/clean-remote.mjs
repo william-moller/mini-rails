@@ -20,7 +20,7 @@ const remote = cfg.remotePath.replace(/\/$/, ''); // e.g. /uglychristmassweater
 // Explicit allowlist of REMOTE paths to remove. Dirs are deleted recursively.
 // `src-disabled` is what a Studio project ends up with after `src` has been parked server-side; it is
 // our TypeScript/SCSS source sitting on the game server, which the pre-release checklist asks us to
-// clear out. Absent on a fresh project — the script skips what isn't there.
+// clear out. A freshly generated project HAS one — BGA's skeleton ships the TS/SCSS toolchain.
 const DIRS = ['node_modules', 'scripts', 'src', 'src-disabled'];
 const FILES = [
     'package.json', 'package-lock.json', 'tsconfig.json', 'rollup.config.mjs',

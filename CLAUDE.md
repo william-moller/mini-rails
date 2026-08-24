@@ -28,7 +28,9 @@ not before.
 ## Project facts
 
 - **Framework:** Modern / Studio (PHP state classes + TypeScript client).
-- **BGA project name:** `minirailsmospinach`, all lowercase · **SFTP remote path:** `/minirailsmospinach/` (in the gitignored `.vscode/sftp.json`). `minirails` is held by a stale project for this game and **cannot** be used — the suffix disambiguates. The name also fixes the stylesheet filename (`minirailsmospinach.css`), the PHP namespace, and the `Gamehelpminirailsmospinach` wiki page BGA renders as the in-game "How to play?" panel. **Read the real namespace out of BGA's generated skeleton rather than deriving it** — the studlycasing of a run-together name is BGA's to decide, not ours to guess.
+- **BGA project name:** `minirailsmospinach`, all lowercase · **SFTP remote path:** `/minirailsmospinach/` (in the gitignored `.vscode/sftp.json`, verified against the server). `minirails` is held by a stale project for this game and **cannot** be used — the suffix disambiguates. The name also fixes the stylesheet filename (`minirailsmospinach.css`) and the `Gamehelpminirailsmospinach` wiki page.
+- **PHP namespace:** `Bga\Games\minirailsmospinach` — the project name verbatim, **not** StudlyCase. Read out of the generated `modules/php/Game.php` on the server, not derived.
+- **⚠️ Do not `npm run ship` until BGA's skeleton has been pulled down and committed.** The server currently holds the generated skeleton; `src/ts/Game.ts` and `src/scss/Game.scss` here are placeholders, so a deploy would overwrite the skeleton's `modules/js/Game.js` and `minirailsmospinach.css` with near-empty files. Deploy is add-and-overwrite with no undo. Pull first.
 - **GitHub:** https://github.com/william-moller/mini-rails (public). Repo/directory use kebab-case (`mini-rails`); only the BGA project is run-together, exactly as `ugly-christmas-sweater` ↔ `uglychristmassweaters`.
 - **BGG ID:** not yet set in `gameinfos.jsonc` (arrives with the skeleton).
 - **Build:** `npm run build` (rollup TS + sass SCSS); `npm run watch`. Edit `src/`, never the generated `modules/js/Game.js` / `minirailsmospinach.css`.
