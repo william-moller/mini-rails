@@ -20,6 +20,7 @@ only what's specific to this game.
 |-------|------|
 | **Mistakes I've made here, and the rules that prevent a repeat** | [`.claude/MISTAKES.md`](.claude/MISTAKES.md) |
 | Open work: bootstrap steps still outstanding, release blockers | [`.claude/backlog.md`](.claude/backlog.md) |
+| **Abandoned prior implementation of this same game** (study, do not fork) | [`../_reference/minirails/CLAUDE.md`](../_reference/minirails/CLAUDE.md) |
 | SFTP/deploy, test tables, framework conventions, PHP-lint scar | [`../.claude/`](../.claude/) (shared) |
 
 `.claude/architecture.md` and `.claude/game-rules.md` follow the same layout as
@@ -33,7 +34,7 @@ not before.
 - **PHP namespace:** `Bga\Games\minirailsmospinach` — the project name verbatim, **not** StudlyCase. Read out of the generated `modules/php/Game.php` on the server, not derived.
 - **Local additions over the skeleton.** BGA generated `package.json`, `rollup.config.mjs`, `tsconfig.json` and `src/`. Only three things here are ours: the `deploy` / `clean:remote` / `ship` scripts plus the `ssh2-sftp-client` dep in `package.json`, the copyright `banner` in `rollup.config.mjs`, and `scripts/`. Keep that boundary visible — re-pulling the skeleton would silently drop all three.
 - **GitHub:** https://github.com/william-moller/mini-rails (public). Repo/directory use kebab-case (`mini-rails`); only the BGA project is run-together, exactly as `ugly-christmas-sweater` ↔ `uglychristmassweaters`.
-- **BGG ID:** not set — `gameinfos.jsonc` still carries the skeleton defaults (`"My Great Game"`, `bgg_id` 225818, `"My Publishing Company"`).
+- **BGG ID:** `gameinfos.jsonc` carries `bgg_id` 225818, which the abandoned `minirails` project has too — so it is probably the real Mini Rails id BGA pre-filled, not a placeholder. `game_name` and `publisher` *are* still placeholders.
 - **Build:** `npm run build` (rollup TS + sass SCSS); `npm run watch`. Edit `src/`, never the generated `modules/js/Game.js` / `minirailsmospinach.css`.
 - **Deploy:** **`npm run ship`** = build + push the game files to BGA (`build` then `deploy -- --yes`). ⚠️ **Never** use the VS Code `SFTP: Sync Local → Remote` — its ignore is broken on Windows and dumps `node_modules/` onto BGA (see `../.claude/deploy.md`). `npm run deploy` alone does a dry-run; `npm run clean:remote -- --yes` purges stray remote files — **run it before the first test table** to clear BGA's skeleton `PlayerTurn.php` / `NextPlayer.php` state classes, which collide fatally with the game's own state ids.
 - **No art pipeline yet.** The sprite generators in `../ugly-christmas-sweater/scripts/` (`build-sprites`, `build-secondary-sprites`, `build-icons`, `rename-art`, `analyze-bleed`) and their `sharp` dependency are deliberately **not** ported. Bring across only the ones this game needs, once there is art to process.
