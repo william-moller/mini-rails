@@ -1,4 +1,5 @@
 import { PlayerTurn } from "./States/PlayerTurn";
+import { renderPlaceholderScaffold } from "./scaffold";
 
 export class Game {
     public bga: Bga<minirailsmospinachPlayer, minirailsmospinachGamedatas>;
@@ -67,8 +68,20 @@ export class Game {
             `);
         });
         
+        // ⚠️ SCAFFOLD — renders the CSS placeholder components against a FAKE position, so a test
+        // table shows something to iterate on while there is no game logic. Delete scaffold.ts and
+        // this call once the board renders from real gamedatas. See src/ts/scaffold.ts.
+        renderPlaceholderScaffold(
+            this.bga.gameArea.getElement(),
+            Object.entries(gamedatas.players).map(([pId, player]) => ({
+                id: Number(pId),
+                name: player.name,
+                color: `#${player.color}`,
+            })),
+        );
+
         // TODO: Set up your game interface here, according to "gamedatas"
-        
+
 
         // Setup game notifications to handle (see "setupNotifications" method below)
         this.setupNotifications();
