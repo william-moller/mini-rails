@@ -1,77 +1,12 @@
-/**
- *------
- * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * minirailsmospinach implementation : © <Your name here> <Your email address here>
- *
- * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
- * See http://en.boardgamearena.com/#!doc/Studio for more information.
- * -----
- * 
- * In this file, you are describing the logic of your user interface, in Javascript language.
- *
- */
-
-/**
- * We create one State class per declared state on the PHP side, to handle all state specific code here.
- * onEnteringState, onLeavingState and onPlayerActivationChange are predefined names that will be called by the framework.
- * When executing code in this state, you can access the args using this.args
- */
-class PlayerTurn {
-    constructor(game, bga) {
-        this.game = game;
-        this.bga = bga;
-    }
-
-    /**
-     * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
-     */
-    onEnteringState(args, isCurrentPlayerActive) {
-        this.bga.statusBar.setTitle(isCurrentPlayerActive ? 
-            _('${you} must play a card or pass') :
-            _('${actplayer} must play a card or pass')
-        );
-      
-        if (isCurrentPlayerActive) {
-            const playableCardsIds = args.playableCardsIds; // returned by the PlayerTurn::getArgs
-
-            // Add test action buttons in the action status bar, simulating a card click:
-            playableCardsIds.forEach(
-                cardId => this.bga.statusBar.addActionButton(_('Play card with id ${card_id}').replace('${card_id}', cardId), () => this.onCardClick(cardId))
-            ); 
-
-            this.bga.statusBar.addActionButton(_('Pass'), () => this.bga.actions.performAction("actPass"), { color: 'secondary' }); 
-        }
-    }
-
-    /**
-     * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
-     */
-    onLeavingState(args, isCurrentPlayerActive) {
-    }
-
-    /**
-     * This method is called each time the current player becomes active or inactive in a MULTIPLE_ACTIVE_PLAYER state. You can use this method to perform some user interface changes at this moment.
-     * on MULTIPLE_ACTIVE_PLAYER states, you may want to call this function in onEnteringState using `this.onPlayerActivationChange(args, isCurrentPlayerActive)` at the end of onEnteringState.
-     * If your state is not a MULTIPLE_ACTIVE_PLAYER one, you can delete this function.
-     */
-    onPlayerActivationChange(args, isCurrentPlayerActive) {
-    }
-
-    
-    onCardClick(card_id) {
-        console.log( 'onCardClick', card_id );
-
-        this.bga.actions.performAction("actPlayCard", { 
-            card_id,
-        }).then(() =>  {                
-            // What to do after the server call if it succeeded
-            // (most of the time, nothing, as the game will react to notifs / change of state instead, so you can delete the `then`)
-        });        
-    }
-}
+import { PlayerTurn } from "./States/PlayerTurn";
 
 export class Game {
-    constructor(bga) {
+    public bga: Bga<minirailsmospinachPlayer, minirailsmospinachGamedatas>;
+    private gamedatas: minirailsmospinachGamedatas;
+
+    private playerTurn: PlayerTurn;
+
+    constructor(bga: Bga<minirailsmospinachPlayer, minirailsmospinachGamedatas>) {
         console.log('minirailsmospinach constructor');
         this.bga = bga;
 
@@ -100,7 +35,7 @@ export class Game {
         "gamedatas" argument contains all datas retrieved by your "getAllDatas" PHP method.
     */
     
-    setup( gamedatas ) {
+    setup(gamedatas: minirailsmospinachGamedatas) {
         console.log( "Starting game setup" );
         this.gamedatas = gamedatas;
 
@@ -110,16 +45,17 @@ export class Game {
         `);
         
         // Setting up player boards
-        Object.values(gamedatas.players).forEach(player => {
+        Object.entries(gamedatas.players).forEach(([pId, player]) => {
+            const playerId = Number(pId);
             // example of setting up players boards
-            this.bga.playerPanels.getElement(player.id).insertAdjacentHTML('beforeend', `
-                <span id="energy-player-counter-${player.id}"></span> Energy
+            this.bga.playerPanels.getElement(playerId).insertAdjacentHTML('beforeend', `
+                <span id="energy-player-counter-${playerId}"></span> Energy
             `);
             const counter = new ebg.counter();
-            counter.create(`energy-player-counter-${player.id}`, {
+            counter.create(`energy-player-counter-${playerId}`, {
                 value: player.energy,
                 playerCounter: 'energy',
-                playerId: player.id
+                playerId: playerId,
             });
 
             // example of adding a div for each player
