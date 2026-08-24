@@ -16,7 +16,6 @@ Not ranked.
   stylesheet, ported into the TypeScript/SCSS toolchain.
 - **Copy the `bga-*.d.ts` typings** (`bga-framework`, `bga-cards`, `bga-animations`) from
   `../ugly-christmas-sweater/` once the client needs them — they are dev-only and never deploy.
-- **Create the GitHub repo** under `github.com/william-moller` and push.
 - **Set project status** to "development started" in Control Panel → Manage Games.
 - **Write `.claude/game-rules.md`** from the rulebook Will is supplying, and `.claude/architecture.md`
   once the state machine exists.
