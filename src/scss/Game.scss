@@ -48,3 +48,18 @@
   text-transform: uppercase;
   color: #4e342e;
 }
+
+// Layout wrappers used by src/ts/board.ts.
+.mr-frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.mr-profit-boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}

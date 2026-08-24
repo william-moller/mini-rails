@@ -2,7 +2,7 @@
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * minirailsmospinach implementation : © <Your name here> <Your email address here>
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
  *
  * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
@@ -10,212 +10,408 @@
  *
  * Game.php
  *
- * This is the main file for your game logic.
- *
- * In this PHP file, you are going to defines the rules of the game.
+ * Core game logic: setup, the disc Deck, and the shared helpers the state classes call.
+ * Rules: .claude/game-rules.md (1st edition, 3-5 players). Schema: dbmodel.sql.
  */
 declare(strict_types=1);
 
 namespace Bga\Games\minirailsmospinach;
 
-use Bga\Games\minirailsmospinach\States\PlayerTurn;
-use Bga\GameFramework\Components\Counters\PlayerCounter;
+use Bga\GameFramework\Components\Deck;
+use Bga\Games\minirailsmospinach\States\DrawPhase;
 
 class Game extends \Bga\GameFramework\Table
 {
-    public static array $CARD_TYPES;
+    /** The 72 Train Company Discs. Every disc in the game is a row here. */
+    public Deck $discs;
 
-    public PlayerCounter $playerEnergy;
-
-    /**
-     * Your global variables labels:
-     *
-     * Here, you can assign labels to global variables you are using for this game. You can use any number of global
-     * variables with IDs between 10 and 99. If you want to store any type instead of int, use $this->globals instead.
-     *
-     * NOTE: afterward, you can get/set the global variables with `getGameStateValue`, `setGameStateInitialValue` or
-     * `setGameStateValue` functions.
-     */
     public function __construct()
     {
         parent::__construct();
 
-        $this->playerEnergy = $this->bga->counterFactory->createPlayerCounter('energy');
+        $this->initGameStateLabels([
+            'round_no' => 10,
+        ]);
 
-        self::$CARD_TYPES = [
-            1 => [
-                "card_name" => clienttranslate('Troll'), // ...
-            ],
-            2 => [
-                "card_name" => clienttranslate('Goblin'), // ...
-            ],
-            // ...
-        ];
-
-        /* example of notification decorator.
-        // automatically complete notification args when needed
-        $this->bga->notify->addDecorator(function(string $message, array $args) {
-            if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
-                $args['player_name'] = $this->getPlayerNameById($args['player_id']);
-            }
-        
-            if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
-                $args['i18n'][] = ['card_name'];
-            }
-            
-            return $args;
-        });*/
+        // NOTE: $this->deckFactory (no ->bga) is DEPRECATED in this framework version — _ide_helper.php
+        // says so explicitly. The wiki mirror in ../../.claude/reference/component-deck.md still shows
+        // the old form; do not copy it.
+        $this->discs = $this->bga->deckFactory->createDeck('disc');
     }
 
-    /**
-     * Compute and return the current game progression.
-     *
-     * The number returned must be an integer between 0 and 100.
-     *
-     * This method is called each time we are in a game state with the "updateGameProgression" property set to true.
-     *
-     * @return int
-     */
+    // ── Progression ───────────────────────────────────────────────────────────────────────────
+
     public function getGameProgression()
     {
-        // TODO: compute and return the game progression
+        $round = (int) $this->getGameStateValue('round_no');
+        if ($round <= 0) {
+            return 0;
+        }
+        return (int) min(100, round(($round - 1) / Material::ROUNDS * 100));
+    }
 
-        return 0;
+    public function upgradeTableDb($from_version)
+    {
+    }
+
+    // ── Shared accessors ──────────────────────────────────────────────────────────────────────
+
+    public function playerCount(): int
+    {
+        return (int) $this->getPlayersNumber();
+    }
+
+    public function trackLength(): int
+    {
+        return Material::trackLength($this->playerCount());
+    }
+
+    public function currentRound(): int
+    {
+        return (int) $this->getGameStateValue('round_no');
+    }
+
+    /** The map, as stored at setup. Keyed by hex_id. */
+    public function getHexes(): array
+    {
+        return $this->getCollectionFromDb(
+            'SELECT `hex_id`, `hex_id` AS `id`, `hex_q` AS `q`, `hex_r` AS `r`, `terrain`, `is_start_for` FROM `hex`'
+        );
+    }
+
+    public function getMarkers(): array
+    {
+        return $this->getObjectListFromDB(
+            'SELECT `marker_id` AS `id`, `player_id`, `track`, `slot` FROM `marker` ORDER BY `track`, `slot`'
+        );
     }
 
     /**
-     * Migrate database.
-     *
-     * You don't have to care about this until your game has been published on BGA. Once your game is on BGA, this
-     * method is called everytime the system detects a game running with your old database scheme. In this case, if you
-     * change your database scheme, you just have to apply the needed changes in order to update the game database and
-     * allow the game to continue to run with your new version.
-     *
-     * @param int $from_version
-     * @return void
+     * Every disc that is anywhere visible, grouped by zone. Discs still in the bag are deliberately
+     * NOT listed individually — their colours are hidden information — only counted.
      */
-    public function upgradeTableDb($from_version)
+    public function getBoardDiscs(): array
     {
-//       if ($from_version <= 1404301345)
-//       {
-//            // ! important ! Use `DBPREFIX_<table_name>` for all tables
-//
-//            $sql = "ALTER TABLE `DBPREFIX_xxxxxxx` ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
-//
-//       if ($from_version <= 1405061421)
-//       {
-//            // ! important ! Use `DBPREFIX_<table_name>` for all tables
-//
-//            $sql = "CREATE TABLE `DBPREFIX_xxxxxxx` ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
+        $out = [
+            'market' => [],
+            'hex'    => [],
+            'frame'  => [],
+            'taxed'  => [],
+            'stocks' => [],
+        ];
+
+        foreach (['market', 'hex', 'frame', 'taxed'] as $zone) {
+            foreach ($this->discs->getCardsInLocation($zone) as $disc) {
+                $out[$zone][] = [
+                    'id'      => (int) $disc['id'],
+                    'company' => $disc['type'],
+                    'arg'     => (int) $disc['location_arg'],
+                ];
+            }
+        }
+
+        foreach ($this->loadPlayersBasicInfos() as $playerId => $_player) {
+            foreach ($this->discs->getCardsInLocation('stock_' . $playerId) as $disc) {
+                $out['stocks'][] = [
+                    'id'      => (int) $disc['id'],
+                    'company' => $disc['type'],
+                    'player'  => (int) $playerId,
+                    'value'   => (int) $disc['location_arg'],
+                ];
+            }
+        }
+
+        return $out;
     }
 
-    /*
-     * Gather all information about current game situation (visible by the current player).
-     *
-     * The method is called each time the game interface is displayed to a player, i.e.:
-     *
-     * - when the game starts
-     * - when a player refreshes the game page (F5)
-     */
+    public function bagCount(): int
+    {
+        return (int) $this->discs->countCardInLocation('bag');
+    }
+
+    // ── getAllDatas ───────────────────────────────────────────────────────────────────────────
+
     protected function getAllDatas(int $currentPlayerId): array
     {
         $result = [];
-        // WARNING: We must only return information visible by the current player (using $currentPlayerId).
 
-        // Get information about players.
-        // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
-        $result["players"] = $this->getCollectionFromDb(
-            "SELECT `player_id` AS `id`, `player_score` AS `score` FROM `player`"
+        $result['players'] = $this->getCollectionFromDb(
+            'SELECT `player_id` AS `id`, `player_name` AS `name`, `player_color` AS `color`,
+                    `player_score` AS `score`,
+                    `player_buy_spent` AS `buySpent`, `player_build_spent` AS `buildSpent`
+             FROM `player`'
         );
-        $this->playerEnergy->fillResult($result);
 
-        // TODO: Gather all information about current game situation (visible by player $currentPlayerId).
+        $result['hexes']       = array_values($this->getHexes());
+        $result['markers']     = $this->getMarkers();
+        $result['discs']       = $this->getBoardDiscs();
+        $result['bagCount']    = $this->bagCount();
+        $result['round']       = $this->currentRound();
+        $result['roundsTotal'] = Material::ROUNDS;
+        $result['trackLength'] = $this->trackLength();
+        $result['companies']   = Material::COMPANIES;
+        $result['terrainValue'] = Material::TERRAIN_VALUE;
+        $result['profitMin']   = Material::PROFIT_MIN;
+        $result['profitMax']   = Material::PROFIT_MAX;
 
         return $result;
     }
 
-    /**
-     * This method is called only once, when a new game is launched. In this method, you must setup the game
-     *  according to the game rules, so that the game is ready to be played.
-     */
+    // ── Setup ─────────────────────────────────────────────────────────────────────────────────
+
     protected function setupNewGame($players, $options = [])
     {
-        $this->playerEnergy->initDb(array_keys($players), initialValue: 2);
-
-        // Set the colors of the players with HTML color code. The default below is red/green/blue/orange/brown. The
-        // number of colors defined here must correspond to the maximum number of players allowed for the gams.
         $gameinfos = $this->getGameinfos();
         $default_colors = $gameinfos['player_colors'];
 
+        $query_values = [];
         foreach ($players as $player_id => $player) {
-            // Now you can access both $player_id and $player array
             $query_values[] = vsprintf("(%s, '%s', '%s')", [
                 $player_id,
                 array_shift($default_colors),
-                addslashes($player["player_name"]),
+                addslashes($player['player_name']),
             ]);
         }
-
-        // Create players based on generic information.
-        //
-        // NOTE: You can add extra field on player table in the database (see dbmodel.sql) and initialize
-        // additional fields directly here.
         static::DbQuery(
             sprintf(
-                "INSERT INTO `player` (`player_id`, `player_color`, `player_name`) VALUES %s",
-                implode(",", $query_values)
+                'INSERT INTO `player` (`player_id`, `player_color`, `player_name`) VALUES %s',
+                implode(',', $query_values)
             )
         );
 
-        $this->reattributeColorsBasedOnPreferences($players, $gameinfos["player_colors"]);
+        $this->reattributeColorsBasedOnPreferences($players, $gameinfos['player_colors']);
         $this->reloadPlayersBasicInfos();
 
-        // Init global values with their initial values.
+        $this->setGameStateInitialValue('round_no', 0);
 
-        // Init game statistics.
-        //
-        // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.
+        $playerCount = count($players);
+        $startHexIds = $this->setupMap();
+        $this->setupDiscs($playerCount, $startHexIds);
+        $this->setupMarkers(array_keys($players));
 
-        // Dummy content.
-        // $this->tableStats->init('table_teststat1', 0);
-        // $this->playerStats->init('player_teststat1', 0);
-
-        // TODO: Setup the initial game situation here.
-
-        // Activate first player once everything has been initialized and ready.
-        $this->activeNextPlayer();
-
-        return PlayerTurn::class;
+        // The Draw Phase opens round 1; it is a GAME state, so no player is active yet.
+        return DrawPhase::class;
     }
 
     /**
-     * Example of debug function.
-     * Here, jump to a state you want to test (by default, jump to next player state)
-     * You can trigger it on Studio using the Debug button on the right of the top bar.
+     * Build the map and choose each company's starting hexes.
+     *
+     * ⚠️ PROVISIONAL on two counts — the map shape (Material::mapHexes) and the terrain mix
+     * (Material::terrainBag). Both are flagged there and both are expected to change once the art
+     * files arrive.
+     *
+     * @return array company => list of hex_id
      */
-    public function debug_goToState(int $state = 3) {
+    private function setupMap(): array
+    {
+        $hexes = Material::mapHexes();
+
+        // The Big City sits at the centre (rulebook Game Setup step 2).
+        $terrainFor = [];
+        $fillers = Material::terrainBag(count($hexes) - 1);
+        shuffle($fillers);
+        $f = 0;
+        foreach ($hexes as $h) {
+            $key = $h['q'] . ',' . $h['r'];
+            $terrainFor[$key] = ($h['q'] === 0 && $h['r'] === 0) ? 'big-city' : $fillers[$f++];
+        }
+
+        // Each company is seeded on one of the six outer tiles — "next to their respective frame
+        // colours". Which outer tile belongs to which company is randomised per game, standing in for
+        // the rulebook's random tile placement.
+        $outerCentres = [
+            ['q' => 1,  'r' => 2],  ['q' => 3,  'r' => -1], ['q' => 2,  'r' => -3],
+            ['q' => -1, 'r' => -2], ['q' => -3, 'r' => 1],  ['q' => -2, 'r' => 3],
+        ];
+        shuffle($outerCentres);
+
+        $startFor = [];
+        foreach (Material::COMPANIES as $i => $company) {
+            $centre = $outerCentres[$i];
+            $ring = Material::neighbours($centre['q'], $centre['r']);
+            $ring[] = $centre;
+            // Prefer the hexes furthest from the map centre — those sit against the frame.
+            usort($ring, function ($a, $b) {
+                return Material::distance($b['q'], $b['r'], 0, 0)
+                     <=> Material::distance($a['q'], $a['r'], 0, 0);
+            });
+            $startFor[$company] = $ring;
+        }
+
+        // Persist the map, recording which company (if any) starts on each hex.
+        $rows = [];
+        $startClaim = [];
+        foreach ($startFor as $company => $ring) {
+            foreach ($ring as $h) {
+                $startClaim[$h['q'] . ',' . $h['r']] = $company;
+            }
+        }
+        foreach ($hexes as $h) {
+            $key = $h['q'] . ',' . $h['r'];
+            $claim = $startClaim[$key] ?? null;
+            $rows[] = sprintf(
+                "(%d, %d, '%s', %s)",
+                $h['q'],
+                $h['r'],
+                $terrainFor[$key],
+                $claim === null ? 'NULL' : "'" . $claim . "'"
+            );
+        }
+        static::DbQuery(
+            'INSERT INTO `hex` (`hex_q`, `hex_r`, `terrain`, `is_start_for`) VALUES ' . implode(',', $rows)
+        );
+
+        // Map axial back to the generated hex_ids so the caller can seed discs.
+        $idByKey = [];
+        foreach ($this->getHexes() as $hex) {
+            $idByKey[$hex['q'] . ',' . $hex['r']] = (int) $hex['hex_id'];
+        }
+        $out = [];
+        foreach ($startFor as $company => $ring) {
+            $ids = [];
+            foreach ($ring as $h) {
+                $ids[] = $idByKey[$h['q'] . ',' . $h['r']];
+            }
+            $out[$company] = $ids;
+        }
+        return $out;
+    }
+
+    /**
+     * Create the discs and split them between the starting hexes and the bag, per player count
+     * (rulebook Game Setup step 4).
+     */
+    private function setupDiscs(int $playerCount, array $startHexIds): void
+    {
+        $setup = Material::SETUP[$playerCount] ?? Material::SETUP[3];
+
+        $cards = [];
+        foreach (Material::COMPANIES as $company) {
+            $cards[] = ['type' => $company, 'type_arg' => 0, 'nbr' => $setup['total']];
+        }
+        $this->discs->createCards($cards, 'bag');
+
+        // Move this company's starting discs out of the bag and onto its starting hexes.
+        foreach (Material::COMPANIES as $company) {
+            $available = array_values($this->discs->getCardsInLocation('bag'));
+            $mine = [];
+            foreach ($available as $disc) {
+                if ($disc['type'] === $company) {
+                    $mine[] = $disc;
+                }
+            }
+            for ($i = 0; $i < $setup['start']; $i++) {
+                if (!isset($mine[$i]) || !isset($startHexIds[$company][$i])) {
+                    break;
+                }
+                $this->discs->moveCard((int) $mine[$i]['id'], 'hex', $startHexIds[$company][$i]);
+            }
+        }
+
+        $this->discs->shuffle('bag');
+    }
+
+    /**
+     * Place the order markers (rulebook Game Setup step 6).
+     *
+     * Clockwise from the start player each places one marker, then counter-clockwise from the last
+     * player each places their second — a snake, so for players A-E the order is A B C D E E D C B A
+     * and the first player is also the last.
+     */
+    private function setupMarkers(array $playerIds): void
+    {
+        $order = array_values($playerIds);
+        $snake = array_merge($order, array_reverse($order));
+
+        $rows = [];
+        foreach ($snake as $slot => $playerId) {
+            $rows[] = sprintf('(%d, %s, %d)', (int) $playerId, "'order'", $slot);
+        }
+        static::DbQuery(
+            'INSERT INTO `marker` (`player_id`, `track`, `slot`) VALUES ' . implode(',', $rows)
+        );
+    }
+
+    // ── Helpers used by the state classes ─────────────────────────────────────────────────────
+
+    /**
+     * Draw Phase step 1: draw 2*players+1 discs from the bag onto the market track, left to right.
+     *
+     * @return array the discs placed, in slot order
+     */
+    public function drawMarket(): array
+    {
+        $count = Material::drawCount($this->playerCount());
+        $bag = array_values($this->discs->getCardsInLocation('bag', null, 'location_arg'));
+
+        $placed = [];
+        for ($slot = 0; $slot < $count; $slot++) {
+            if (!isset($bag[$slot])) {
+                break; // the bag empties exactly as the last round is drawn; never mid-draw
+            }
+            $disc = $bag[$slot];
+            $this->discs->moveCard((int) $disc['id'], 'market', $slot);
+            $placed[] = [
+                'id'      => (int) $disc['id'],
+                'company' => $disc['type'],
+                'arg'     => $slot,
+            ];
+        }
+        return $placed;
+    }
+
+    /** Draw Phase step 2: every player gets both action tiles back. */
+    public function resetActionTiles(): void
+    {
+        static::DbQuery('UPDATE `player` SET `player_buy_spent` = 0, `player_build_spent` = 0');
+    }
+
+    public function setRound(int $round): void
+    {
+        $this->setGameStateValue('round_no', $round);
+    }
+
+    /**
+     * Whose turn it is: the owner of the leftmost remaining marker on the order track. Markers leave
+     * the order track as their owners act, so "leftmost remaining" walks the round forward on its own.
+     */
+    public function firstOrderPlayerId(): ?int
+    {
+        $row = $this->getObjectFromDB(
+            'SELECT `player_id` FROM `marker` WHERE `track` = \'order\' ORDER BY `slot` ASC LIMIT 1'
+        );
+        return $row === null ? null : (int) $row['player_id'];
+    }
+
+    /**
+     * Remove the leftmost order-track marker.
+     *
+     * ⚠️ PARTIAL — properly this marker moves ONTO the market track, into the slot of the disc the
+     * player chose, which is what makes this round's market track become next round's order track.
+     * The slot choice belongs to the actions, which are not written yet. See States/NextPlayer.
+     */
+    public function consumeFirstOrderMarker(): void
+    {
+        static::DbQuery(
+            'DELETE FROM `marker` WHERE `track` = \'order\' ORDER BY `slot` ASC LIMIT 1'
+        );
+    }
+
+    /** Make the leftmost order-track player active. Returns false if the order track is empty. */
+    public function activateFirstOrderPlayer(): bool
+    {
+        $playerId = $this->firstOrderPlayerId();
+        if ($playerId === null) {
+            return false;
+        }
+        $this->gamestate->changeActivePlayer($playerId);
+        return true;
+    }
+
+    // ── Debug ─────────────────────────────────────────────────────────────────────────────────
+
+    public function debug_goToState(int $state = 3)
+    {
         $this->gamestate->jumpToState($state);
     }
-
-    /**
-     * Another example of debug function, to easily test the zombie code.
-     */
-    public function debug_playOneMove() {
-        $this->bga->debug->playUntil(fn(int $count) => $count == 1);
-    }
-
-    /*
-    Another example of debug function, to easily create situations you want to test.
-    Here, put a card you want to test in your hand (assuming you use the Deck component).
-
-    public function debug_setCardInHand(int $cardType, int $playerId) {
-        $card = array_values($this->cards->getCardsOfType($cardType))[0];
-        $this->cards->moveCard($card['id'], 'hand', $playerId);
-    }
-    */
 }

@@ -1,5 +1,5 @@
 import { PlayerTurn } from "./States/PlayerTurn";
-import { renderPlaceholderScaffold } from "./scaffold";
+import { renderBoard } from "./board";
 
 export class Game {
     public bga: Bga<minirailsmospinachPlayer, minirailsmospinachGamedatas>;
@@ -40,48 +40,8 @@ export class Game {
         console.log( "Starting game setup" );
         this.gamedatas = gamedatas;
 
-        // Example to add a div on the game area
-        this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
-            <div id="player-tables"></div>
-        `);
-        
-        // Setting up player boards
-        Object.entries(gamedatas.players).forEach(([pId, player]) => {
-            const playerId = Number(pId);
-            // example of setting up players boards
-            this.bga.playerPanels.getElement(playerId).insertAdjacentHTML('beforeend', `
-                <span id="energy-player-counter-${playerId}"></span> Energy
-            `);
-            const counter = new ebg.counter();
-            counter.create(`energy-player-counter-${playerId}`, {
-                value: player.energy,
-                playerCounter: 'energy',
-                playerId: playerId,
-            });
-
-            // example of adding a div for each player
-            document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
-                <div id="player-table-${player.id}">
-                    <strong>${player.name}</strong>
-                    <div>Player zone content goes here</div>
-                </div>
-            `);
-        });
-        
-        // ⚠️ SCAFFOLD — renders the CSS placeholder components against a FAKE position, so a test
-        // table shows something to iterate on while there is no game logic. Delete scaffold.ts and
-        // this call once the board renders from real gamedatas. See src/ts/scaffold.ts.
-        renderPlaceholderScaffold(
-            this.bga.gameArea.getElement(),
-            Object.entries(gamedatas.players).map(([pId, player]) => ({
-                id: Number(pId),
-                name: player.name,
-                color: `#${player.color}`,
-            })),
-        );
-
-        // TODO: Set up your game interface here, according to "gamedatas"
-
+        // The board renders entirely from gamedatas. Only the ART is still a placeholder.
+        renderBoard(this.bga.gameArea.getElement(), gamedatas);
 
         // Setup game notifications to handle (see "setupNotifications" method below)
         this.setupNotifications();

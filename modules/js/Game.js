@@ -10,49 +10,26 @@
  * GENERATED — do not edit. Built from src/ts by rollup (npm run build).
  */
 /**
- * We create one State class per declared state on the PHP side, to handle all state specific code here.
- * onEnteringState, onLeavingState and onPlayerActivationChange are predefined names that will be called by the framework.
- * When executing code in this state, you can access the args using this.args
+ * Client-side handler for the Action Phase.
+ *
+ * ⚠️ The two actions are not implemented server-side yet (see modules/php/States/PlayerTurn.php), so
+ * there is nothing to click. This announces whose turn it is and says plainly that the actions are
+ * still to come, rather than offering buttons that would fail.
+ *
+ * When actBuyShare / actBuildTrack land, this is where market discs become clickable and, for Build,
+ * legal hexes get `is-selectable`.
  */
 class PlayerTurn {
     constructor(game, bga) {
         this.game = game;
         this.bga = bga;
     }
-    /**
-     * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
-     */
     onEnteringState(args, isCurrentPlayerActive) {
-        this.bga.statusBar.setTitle(isCurrentPlayerActive ?
-            _('${you} must play a card or pass') :
-            _('${actplayer} must play a card or pass'));
-        if (isCurrentPlayerActive) {
-            const playableCardsIds = args.playableCardsIds; // returned by the PlayerTurn::getArgs
-            // Add test action buttons in the action status bar, simulating a card click:
-            playableCardsIds.forEach(cardId => this.bga.statusBar.addActionButton(_('Play card with id ${card_id}').replace('${card_id}', `${cardId}`), () => this.onCardClick(cardId)));
-            this.bga.statusBar.addActionButton(_('Pass'), () => this.bga.actions.performAction("actPass"), { color: 'secondary' });
-        }
+        this.bga.statusBar.setTitle(isCurrentPlayerActive
+            ? _('${you} would act here — Buy Shares and Build Tracks are not implemented yet')
+            : _('${actplayer} would act here — actions are not implemented yet'));
     }
-    /**
-     * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
-     */
     onLeavingState(args, isCurrentPlayerActive) {
-    }
-    /**
-     * This method is called each time the current player becomes active or inactive in a MULTIPLE_ACTIVE_PLAYER state. You can use this method to perform some user interface changes at this moment.
-     * on MULTIPLE_ACTIVE_PLAYER states, you may want to call this function in onEnteringState using `this.onPlayerActivationChange(args, isCurrentPlayerActive)` at the end of onEnteringState.
-     * If your state is not a MULTIPLE_ACTIVE_PLAYER one, you can delete this function.
-     */
-    onPlayerActivationChange(args, isCurrentPlayerActive) {
-    }
-    onCardClick(card_id) {
-        console.log('onCardClick', card_id);
-        this.bga.actions.performAction("actPlayCard", {
-            card_id,
-        }).then(() => {
-            // What to do after the server call if it succeeded
-            // (most of the time, nothing, as the game will react to notifs / change of state instead, so you can delete the `then`)
-        });
     }
 }
 
@@ -319,72 +296,102 @@ function renderProfitBoard(spec) {
 }
 
 /**
- * Visual scaffold — renders the placeholder components into a real BGA table.
+ * Renders the real board from gamedatas.
  *
- * ⚠️ THIS DRAWS A FAKE POSITION. There is no server-side game logic yet, so the board below is
- * invented for display: terrain is assigned by cycling a list, discs and stocks are hard-coded. It is
- * here so a test table shows something legible to iterate on while the state machine is written.
+ * This replaces scaffold.ts, which drew an invented position. Everything here comes from the server,
+ * so what you see on a table is true — the placeholder banner is gone and only the ART is still a
+ * placeholder.
  *
- * DELETE THIS FILE once setup() renders from real gamedatas. It must never become the path by which
- * fake state reaches a table that also has real state — that is how a display bug gets mistaken for a
- * rules bug. The banner it renders is the safeguard: if you can see it, nothing on screen is real.
+ * ⚠️ BGA hands back SQL columns as STRINGS. Coordinates and values are coerced with Number() at the
+ * boundary; skipping that puts hexes at NaN and the board silently fails to draw.
  */
-const TERRAINS = Object.keys(TERRAIN_VALUE);
-/** Deterministic — cycling, not random, so the same table always looks the same. */
-function demoMap() {
-    return provisionalMap().map((hex, i) => {
-        if (hex.q === 0 && hex.r === 0)
-            return { hex, terrain: 'big-city' };
-        const terrain = TERRAINS[1 + (i % (TERRAINS.length - 1))];
-        const disc = i % 7 === 3 ? COMPANIES[i % COMPANIES.length] : undefined;
-        return { hex, terrain, disc };
-    });
-}
-function renderPlaceholderScaffold(container, players) {
+const n = (v) => Number(v);
+function renderBoard(container, gamedatas) {
     const root = document.createElement('div');
     root.className = 'mr-root';
-    const banner = document.createElement('div');
-    banner.className = 'mr-placeholder-banner';
-    banner.textContent = 'Placeholder art & fake position — no game logic yet';
-    root.appendChild(banner);
-    root.appendChild(renderHexBoard(demoMap()));
-    const frames = document.createElement('div');
-    frames.style.display = 'flex';
-    frames.style.gap = '8px';
-    frames.style.margin = '12px 0';
-    for (const c of COMPANIES)
-        frames.appendChild(renderFrame(c));
-    root.appendChild(frames);
-    const count = Math.max(players.length, 1);
-    const len = trackLength(count);
-    const marketTrack = Array.from({ length: len }, (_, i) => ({
-        kind: 'disc',
-        company: COMPANIES[i % COMPANIES.length],
+    // ── Map ───────────────────────────────────────────────────────────────────────────────────
+    // Discs built on hexes are keyed by hex_id, which is what disc.arg holds for the 'hex' zone.
+    const discByHexId = new Map();
+    for (const d of gamedatas.discs.hex)
+        discByHexId.set(n(d.arg), d.company);
+    const specs = gamedatas.hexes.map((h) => ({
+        hex: { q: n(h.q), r: n(h.r) },
+        terrain: h.terrain,
+        disc: discByHexId.get(n(h.hex_id)),
     }));
-    const orderTrack = Array.from({ length: len }, (_, i) => i < count * 2
-        ? { kind: 'marker', color: players[i % count].color, name: players[i % count].name }
-        : { kind: 'empty' });
-    root.appendChild(renderMarketBoard({
-        playerCount: count,
-        orderTrack,
-        marketTrack,
-        taxed: [null, null, null, null, null, null],
-        currentIndex: 0,
-    }));
-    const boards = document.createElement('div');
-    boards.style.display = 'flex';
-    boards.style.flexWrap = 'wrap';
-    boards.style.gap = '12px';
-    boards.style.marginTop = '12px';
-    players.forEach((p, i) => {
-        boards.appendChild(renderProfitBoard({
-            playerName: p.name,
-            playerColor: p.color,
-            stocks: [{ company: COMPANIES[i % COMPANIES.length], value: 0 }],
-        }));
+    const board = renderHexBoard(specs);
+    root.appendChild(board);
+    // ── Company frames ────────────────────────────────────────────────────────────────────────
+    const framesRow = document.createElement('div');
+    framesRow.className = 'mr-frames';
+    for (const company of gamedatas.companies) {
+        const onFrame = gamedatas.discs.frame.filter((d) => d.company === company);
+        framesRow.appendChild(renderFrame(company, onFrame.map((d) => d.company)));
+    }
+    root.appendChild(framesRow);
+    // ── Central Market Board ──────────────────────────────────────────────────────────────────
+    const len = n(gamedatas.trackLength);
+    const colorOf = (playerId) => {
+        const p = gamedatas.players[playerId];
+        return p ? `#${p.color}` : '#607d8b';
+    };
+    const nameOf = (playerId) => {
+        const p = gamedatas.players[playerId];
+        return p ? p.name : '';
+    };
+    const trackSlots = (track) => {
+        const slots = Array.from({ length: len }, () => ({ kind: 'empty' }));
+        for (const m of gamedatas.markers) {
+            if (m.track !== track)
+                continue;
+            const i = n(m.slot);
+            if (i >= 0 && i < len) {
+                slots[i] = { kind: 'marker', color: colorOf(n(m.player_id)), name: nameOf(n(m.player_id)) };
+            }
+        }
+        if (track === 'market') {
+            for (const d of gamedatas.discs.market) {
+                const i = n(d.arg);
+                // A marker in a slot means that disc has already been taken this round.
+                if (i >= 0 && i < len && slots[i].kind === 'empty') {
+                    slots[i] = { kind: 'disc', company: d.company };
+                }
+            }
+        }
+        return slots;
+    };
+    const taxed = Array.from({ length: 6 }, () => null);
+    for (const d of gamedatas.discs.taxed) {
+        const i = n(d.arg);
+        if (i >= 0 && i < 6)
+            taxed[i] = d.company;
+    }
+    const market = renderMarketBoard({
+        playerCount: Object.keys(gamedatas.players).length,
+        orderTrack: trackSlots('order'),
+        marketTrack: trackSlots('market'),
+        taxed,
     });
-    root.appendChild(boards);
+    root.appendChild(market);
+    // ── Profit Boards ─────────────────────────────────────────────────────────────────────────
+    const profitBoards = document.createElement('div');
+    profitBoards.className = 'mr-profit-boards';
+    for (const [pId, player] of Object.entries(gamedatas.players)) {
+        const playerId = n(pId);
+        const stocks = gamedatas.discs.stocks
+            .filter((s) => n(s.player) === playerId)
+            .map((s) => ({ company: s.company, value: n(s.value) }));
+        profitBoards.appendChild(renderProfitBoard({
+            playerName: player.name,
+            playerColor: `#${player.color}`,
+            stocks,
+            buySpent: n(player.buySpent) === 1,
+            buildSpent: n(player.buildSpent) === 1,
+        }));
+    }
+    root.appendChild(profitBoards);
     container.appendChild(root);
+    return { root, board, market, profitBoards };
 }
 
 class Game {
@@ -415,40 +422,8 @@ class Game {
     setup(gamedatas) {
         console.log("Starting game setup");
         this.gamedatas = gamedatas;
-        // Example to add a div on the game area
-        this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
-            <div id="player-tables"></div>
-        `);
-        // Setting up player boards
-        Object.entries(gamedatas.players).forEach(([pId, player]) => {
-            const playerId = Number(pId);
-            // example of setting up players boards
-            this.bga.playerPanels.getElement(playerId).insertAdjacentHTML('beforeend', `
-                <span id="energy-player-counter-${playerId}"></span> Energy
-            `);
-            const counter = new ebg.counter();
-            counter.create(`energy-player-counter-${playerId}`, {
-                value: player.energy,
-                playerCounter: 'energy',
-                playerId: playerId,
-            });
-            // example of adding a div for each player
-            document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
-                <div id="player-table-${player.id}">
-                    <strong>${player.name}</strong>
-                    <div>Player zone content goes here</div>
-                </div>
-            `);
-        });
-        // ⚠️ SCAFFOLD — renders the CSS placeholder components against a FAKE position, so a test
-        // table shows something to iterate on while there is no game logic. Delete scaffold.ts and
-        // this call once the board renders from real gamedatas. See src/ts/scaffold.ts.
-        renderPlaceholderScaffold(this.bga.gameArea.getElement(), Object.entries(gamedatas.players).map(([pId, player]) => ({
-            id: Number(pId),
-            name: player.name,
-            color: `#${player.color}`,
-        })));
-        // TODO: Set up your game interface here, according to "gamedatas"
+        // The board renders entirely from gamedatas. Only the ART is still a placeholder.
+        renderBoard(this.bga.gameArea.getElement(), gamedatas);
         // Setup game notifications to handle (see "setupNotifications" method below)
         this.setupNotifications();
         console.log("Ending game setup");
