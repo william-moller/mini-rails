@@ -8,11 +8,9 @@ Not ranked.
 
 ## Bootstrap (see [`../../.claude/deploy.md`](../../.claude/deploy.md), "Starting a new game")
 
-- **Fill in the game identity in `gameinfos.jsonc`.** `game_name` is still `"My Great Game"` and
-  `publisher` still `"My Publishing Company"`. **`bgg_id` 225818 is most likely already correct** — the
-  abandoned `minirails` project carries the same id, so BGA appears to pre-fill the licensed game’s real
-  BGG id; confirm on boardgamegeek.com rather than replacing it blind. Values the reference supplies:
-  `publisher_bgg_id` 23245, publisher website `https://www.wix.moaideas.net/`, `players` [3, 4, 5].
+- **Confirm `bgg_id` 225818 on boardgamegeek.com.** The abandoned `minirails` project carries the
+  same id, so BGA appears to pre-fill the licensed game's real BGG id — but it has never been checked
+  against BGG itself.
 - **Put a real copyright header in the sources.** `<Your name here> <Your email address here>` sits in
   `modules/php/*.php` and `src/scss/Game.scss`; the pre-release checklist wants a real name in every
   source file. `rollup.config.mjs` already injects one into the built bundle.

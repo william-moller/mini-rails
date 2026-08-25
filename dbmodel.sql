@@ -19,9 +19,14 @@
 -- disc : the 72 Train Company Discs (12 each of 6 colours)
 -- Managed by the BGA Deck component:  $this->discs = $this->deckFactory->createDeck('disc');
 --
---   disc_type          = company colour: 'red'|'white'|'tan'|'blue'|'yellow'|'gray'
---   disc_type_arg      = unused (0)
---   disc_location      = 'bag'                 -- undrawn, in the cloth bag
+-- ⚠️ COLUMNS MUST BE NAMED `card_*`, NOT `disc_*`. The Deck component takes the TABLE name as a
+-- parameter but hard-codes the COLUMN prefix as `card_`. Naming them after the table made every
+-- Deck call fail at setup with "Unknown column 'card_location_arg' in 'field list'". The table name
+-- is the only part that is ours to choose.
+--
+--   card_type          = company colour: 'red'|'white'|'tan'|'blue'|'yellow'|'gray'
+--   card_type_arg      = unused (0)
+--   card_location      = 'bag'                 -- undrawn, in the cloth bag
 --                      | 'market'              -- on the market track this round
 --                      | 'hex'                 -- built as track on the map
 --                      | 'frame'               -- blocked company, placed on its frame
@@ -30,9 +35,9 @@
 --                      | 'scrapped_<player_id>'-- discarded at FINAL SCORING by the taxed/untaxed
 --                                              -- inversion. Keeps the disc (and its last value in
 --                                              -- location_arg) for the log instead of deleting it.
---   disc_location_arg  = market -> slot index 0..2n
+--   card_location_arg  = market -> slot index 0..2n
 --                        hex    -> hex_id (see `hex` below)
---                        frame  -> 0 (the company is already disc_type)
+--                        frame  -> 0 (the company is already card_type)
 --                        taxed  -> slot index 0..5 (one per round)
 --                        stock  -> the stock's CURRENT VALUE, -10..+10
 --
@@ -44,20 +49,21 @@
 -- already at +4, then moves with every later build. Buying early vs late IS the game, so value can
 -- never be hoisted onto the company.
 --
--- disc_location_arg must stay SIGNED — stock values go negative.
+-- card_location_arg must stay SIGNED — stock values go negative.
 --
--- IMPORTANT (modern framework): the Deck component auto-creates this table with the 5 standard
--- columns and IGNORES any extra columns declared here. Keep it to the standard 5; per-disc extras
--- would need a separate side table.
+-- Keep this to the 5 standard columns; per-disc extras would need a separate side table.
+-- (An earlier note here claimed the Deck component auto-creates the table and ignores what is
+-- declared. It does not — this CREATE TABLE is what actually runs, which is exactly why the wrong
+-- column names above were fatal rather than harmless.)
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS `disc` (
-  `disc_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `disc_type` VARCHAR(8) NOT NULL,
-  `disc_type_arg` INT NOT NULL DEFAULT 0,
-  `disc_location` VARCHAR(24) NOT NULL,
-  `disc_location_arg` INT NOT NULL DEFAULT 0,
-  PRIMARY KEY (`disc_id`),
-  KEY `idx_disc_location` (`disc_location`, `disc_location_arg`)
+  `card_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `card_type` VARCHAR(8) NOT NULL,
+  `card_type_arg` INT NOT NULL DEFAULT 0,
+  `card_location` VARCHAR(24) NOT NULL,
+  `card_location_arg` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`card_id`),
+  KEY `idx_card_location` (`card_location`, `card_location_arg`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1;
 
 

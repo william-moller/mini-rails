@@ -572,8 +572,8 @@ class Game extends \Bga\GameFramework\Table
         }
         static::DbQuery(sprintf(
             'UPDATE `disc`
-                SET `disc_location_arg` = GREATEST(%d, LEAST(%d, `disc_location_arg` + (%d)))
-              WHERE `disc_type` = \'%s\' AND `disc_location` LIKE \'stock\\_%%\'',
+                SET `card_location_arg` = GREATEST(%d, LEAST(%d, `card_location_arg` + (%d)))
+              WHERE `card_type` = \'%s\' AND `card_location` LIKE \'stock\\_%%\'',
             Material::PROFIT_MIN,
             Material::PROFIT_MAX,
             $delta,
@@ -585,11 +585,11 @@ class Game extends \Bga\GameFramework\Table
     public function stocksOf(string $company): array
     {
         return $this->getObjectListFromDB(sprintf(
-            'SELECT `disc_id` AS `id`, `disc_type` AS `company`,
-                    CAST(SUBSTRING(`disc_location`, 7) AS UNSIGNED) AS `player`,
-                    `disc_location_arg` AS `value`
+            'SELECT `card_id` AS `id`, `card_type` AS `company`,
+                    CAST(SUBSTRING(`card_location`, 7) AS UNSIGNED) AS `player`,
+                    `card_location_arg` AS `value`
                FROM `disc`
-              WHERE `disc_type` = \'%s\' AND `disc_location` LIKE \'stock\\_%%\'',
+              WHERE `card_type` = \'%s\' AND `card_location` LIKE \'stock\\_%%\'',
             $company
         ));
     }
