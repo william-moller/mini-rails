@@ -20,10 +20,19 @@ Not ranked.
   is currently drawn with CSS shapes (see `src/scss/_tokens.scss`). The intended swap is
   background-image sprites inside `_hex.scss` and `_disc.scss`; layout, sizing and class names are
   meant to survive it. Remove the `.mr-placeholder-banner` at the same time.
-- **Settle the map shape.** `provisionalMap()` in `src/ts/hex.ts` assumes 7 tiles x 7 hexes = 49
-  because the rulebook never says whether a "map tile" is one hex or a flower of seven, and 7 single
-  hexes cannot absorb 60-72 discs. The art files should settle it. It is deliberately the only place
-  the map shape is defined.
+- **Enter the real per-space terrain data.** `Material::TERRAIN_BY_SPACE` holds all 98 space codes
+  (7 tiles x 2 faces x 7 positions) but the terrain values are invented placeholders. Only
+  `'111'`/`'121'` — The Big City on tile 1's centre — are real. Overwrite the values in place;
+  nothing else needs to change. Ground truth for **1A, 2A and 3A** is already readable in the
+  publisher scans at [`../../_reference/minirails/img/wheel_*.png`](../../_reference/minirails/img/),
+  and the remaining four tiles plus every B side need the art request or the physical tiles.
+- **Confirm tile 1's B side still carries The Big City.** `Material::BIG_CITY_TILE` assumes it does,
+  on the grounds that a 50/50 flip which could delete The Big City from the game would be absurd.
+  Side A is confirmed from `wheel_0.png`; side B is not. If wrong, only `TERRAIN_BY_SPACE['121']`
+  changes.
+- **Confirm the starting-hex layout.** `setupMap()` seeds each company on the spaces furthest from
+  the map centre on one randomly-assigned outer tile. The rulebook shows the real layout only as
+  diagrams, and the 3-player layout differs from the 4/5-player one.
 - **Copy the `bga-cards` / `bga-animations` typings** from `../ugly-christmas-sweater/` if the client
   needs them (`bga-framework.d.ts` came with the skeleton). Dev-only; they never deploy.
 - **Set project status** to "development started" in Control Panel → Manage Games.
@@ -34,6 +43,20 @@ Not ranked.
   unchanged. Worth asking BGA which edition the licence covers — that answer may also settle the
   `players` list in `gameinfos.jsonc`.
 - **Write `.claude/architecture.md`** once the state machine exists.
+
+## Game logic
+
+- **Check whether the 2nd edition still has The Big City at +5.** +5 is **confirmed correct for the
+  1st edition** — the rulebook, the five white dots on tile 1's centre in `wheel_0.png`, and Will all
+  agree. It is the only terrain outside ±1..±3, so it is worth re-checking whenever the 2nd-edition
+  rulebook turns up. Not a known problem; just the one value that would be easy to retune.
+- **Give the cloth bag a spot in the layout.** `bagCount` already reaches the client in `getAllDatas`
+  and nothing renders it. It is purely a random-draw source, so it needs a place to sit and a count,
+  not a component model.
+- **Settle what a frame tile's A/B side does.** The rulebook says all six frames must show the same
+  side to connect, but not whether the side changes anything else. Until that is known the frame
+  stays modelled as a disc *location* only, with no entity, side or map-edge position — and
+  `renderFrame()` still draws at most one disc however many are on it.
 
 ## Before the first test table
 

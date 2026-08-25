@@ -30,10 +30,19 @@ export interface BoardRefs {
     profitBoards: HTMLElement;
 }
 
+/**
+ * Draw the whole board from gamedatas, replacing anything already there.
+ *
+ * A full redraw rather than incremental DOM updates: every component is still a CSS placeholder with
+ * no animation to preserve, and re-rendering from state cannot drift out of step with the server the
+ * way a pile of hand-written mutations can. Revisit when the art and animations land.
+ */
 export function renderBoard(
     container: HTMLElement,
     gamedatas: minirailsmospinachGamedatas,
 ): BoardRefs {
+    container.querySelector('.mr-root')?.remove();
+
     const root = document.createElement('div');
     root.className = 'mr-root';
 
@@ -46,6 +55,10 @@ export function renderBoard(
         hex: { q: n(h.q), r: n(h.r) },
         terrain: h.terrain as Terrain,
         disc: discByHexId.get(n(h.hex_id)),
+        tile: n(h.tile),
+        position: n(h.position),
+        space: h.space,
+        hexId: n(h.hex_id),
     }));
     const board = renderHexBoard(specs);
     root.appendChild(board);
@@ -91,10 +104,12 @@ export function renderBoard(
         return slots;
     };
 
-    const taxed: (Company | null)[] = Array.from({ length: 6 }, () => null);
+    // One taxed space per round — the area fills as the bag empties, so both run out together.
+    const taxedSlots = n(gamedatas.roundsTotal);
+    const taxed: (Company | null)[] = Array.from({ length: taxedSlots }, () => null);
     for (const d of gamedatas.discs.taxed) {
         const i = n(d.arg);
-        if (i >= 0 && i < 6) taxed[i] = d.company as Company;
+        if (i >= 0 && i < taxedSlots) taxed[i] = d.company as Company;
     }
 
     const market = renderMarketBoard({

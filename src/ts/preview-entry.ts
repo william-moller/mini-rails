@@ -25,7 +25,7 @@ import {
     renderProfitBoard,
     trackLength,
 } from './components';
-import { hexKey, provisionalMap } from './hex';
+import { expandTiles, hexKey, rollTiles } from './hex';
 
 const TERRAINS = Object.keys(TERRAIN_VALUE) as Terrain[];
 
@@ -68,15 +68,25 @@ function labelled(node: HTMLElement, text: string): HTMLElement {
     return wrap;
 }
 
+/**
+ * A demo map: roll 7 tiles with random faces and rotations, then expand them into 49 spaces.
+ *
+ * The real terrain-per-space table lives server-side in Material::TERRAIN_BY_SPACE and reaches a
+ * table through gamedatas, so the client has no copy and this preview must invent one. Terrain here
+ * is derived from the space code so it is stable per space, but it is DISPLAY FILLER — it is not the
+ * server's data and must never become a second source of truth for it.
+ */
 function buildMap(): HexSpec[] {
     const rand = seeded(20260823);
-    const hexes = provisionalMap();
-    // Centre is The Big City; everything else gets stable filler terrain.
-    return hexes.map((hex) => {
-        if (hex.q === 0 && hex.r === 0) return { hex, terrain: 'big-city' as Terrain };
-        const terrain = TERRAINS[1 + Math.floor(rand() * (TERRAINS.length - 1))];
+    const tiles = rollTiles(rand);
+    return expandTiles(tiles).map((s) => {
+        // Tile 1's centre is The Big City on either face — the one space that is not filler.
+        const terrain: Terrain =
+            s.tile === 1 && s.position === 1
+                ? 'big-city'
+                : TERRAINS[1 + (Number(s.space) * 7919) % (TERRAINS.length - 1)];
         const disc = rand() < 0.18 ? COMPANIES[Math.floor(rand() * COMPANIES.length)] : undefined;
-        return { hex, terrain, disc };
+        return { hex: s.hex, terrain, disc, tile: s.tile, position: s.position, space: s.space };
     });
 }
 
@@ -93,9 +103,10 @@ function main(): void {
     // ── Map ───────────────────────────────────────────────────────────────────────────────────
     const mapSection = section(
         'Hex map',
-        'PROVISIONAL SHAPE: 7 tiles × 7 hexes, from provisionalMap() in hex.ts. The rulebook does not ' +
-            'say whether a "map tile" is one hex or a flower of seven; this is the reading that fits the ' +
-            'disc counts. Terrain assignment here is random filler, not the real board.',
+        'CONFIRMED SHAPE: 7 tiles × 7 spaces = 49, each tile randomly flipped (A/B) and rotated, ' +
+            'with The Big City tile fixed at the centre. Reload for a different layout. Terrain here ' +
+            'is display filler keyed off the space code — the real per-space data lives server-side ' +
+            'in Material::TERRAIN_BY_SPACE and is still provisional.',
     );
     const specs = buildMap();
     mapSection.appendChild(renderHexBoard(specs));

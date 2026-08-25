@@ -82,6 +82,13 @@ export interface HexSpec {
     terrain: Terrain;
     /** Company disc built here, if any. */
     disc?: Company;
+    /** Which tile this space belongs to, and where on it — see src/ts/hex.ts. */
+    tile?: number;
+    position?: number;
+    /** Printed space id, e.g. '314'. */
+    space?: string;
+    /** Server hex_id. The key actions address a hex by, so it must reach the DOM. */
+    hexId?: number;
 }
 
 export function renderHex(spec: HexSpec): HTMLElement {
@@ -90,6 +97,12 @@ export function renderHex(spec: HexSpec): HTMLElement {
     node.setAttribute('style', hexStyleVars(hex));
     node.dataset.hex = hexKey(hex);
     node.dataset.terrain = terrain;
+    // The space's printed identity, kept on the element so a tile can be inspected on a live table
+    // without a server round trip.
+    if (spec.tile !== undefined) node.dataset.tile = String(spec.tile);
+    if (spec.position !== undefined) node.dataset.position = String(spec.position);
+    if (spec.space !== undefined) node.dataset.space = spec.space;
+    if (spec.hexId !== undefined) node.dataset.hexId = String(spec.hexId);
 
     if (disc) {
         node.appendChild(renderDisc(disc, 'on-hex'));

@@ -19,15 +19,9 @@ use Bga\Games\minirailsmospinach\Game;
 /**
  * Advance the Action Phase to the next player, or end the round.
  *
- * ⚠️ PARTIAL. Properly, a turn moves the player's leftmost order-track marker ONTO the market track,
- * into the slot of the disc they chose — which is what turns this round's market track into next
- * round's order track. That choice belongs to the actions, which are not written yet, so for now the
- * marker is simply consumed. That keeps the round advancing and, more importantly, keeps this state
- * from looping forever: PlayerTurn's zombie routes here, and if nothing were consumed the same player
- * would be reactivated indefinitely.
- *
- * When the actions land, replace the delete with a move to ('market', chosenSlot) and route the empty
- * order track to the Taxation Phase rather than straight back to the Draw Phase.
+ * The acting player's marker has already left the order track — it moved onto the market track, into
+ * the slot of the disc they took, as part of their action. So "whose turn is it" is simply the owner
+ * of the leftmost marker still on the order track, and the round ends when none are left.
  *
  * The id stays 90 — BGA's skeleton value — so this file overwrites the skeleton's on deploy instead
  * of leaving an orphan with a colliding state id.
@@ -47,13 +41,12 @@ class NextPlayer extends GameState
     function onEnteringState(int $activePlayerId)
     {
         $this->game->giveExtraTime($activePlayerId);
-        $this->game->consumeFirstOrderMarker();
 
         if ($this->game->activateFirstOrderPlayer()) {
             return PlayerTurn::class;
         }
 
-        // Order track empty: the round is over. The Taxation Phase belongs here once it exists.
-        return DrawPhase::class;
+        // Order track empty: every player has acted twice and one disc is left to be taxed.
+        return TaxationPhase::class;
     }
 }

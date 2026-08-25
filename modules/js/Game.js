@@ -12,24 +12,134 @@
 /**
  * Client-side handler for the Action Phase.
  *
- * ⚠️ The two actions are not implemented server-side yet (see modules/php/States/PlayerTurn.php), so
- * there is nothing to click. This announces whose turn it is and says plainly that the actions are
- * still to come, rather than offering buttons that would fail.
+ * The turn is two clicks, sometimes three:
  *
- * When actBuyShare / actBuildTrack land, this is where market discs become clickable and, for Build,
- * legal hexes get `is-selectable`.
+ *   1. pick a disc still on the market track
+ *   2. choose Buy Shares or Build Tracks — skipped when only one action tile is left, which is
+ *      always the case on a player's second turn of the round
+ *   3. for Build, pick a legal hex (or the company's frame, if it has nowhere to go)
+ *
+ * Legality is decided by the server and arrives in the state args; nothing here re-derives it. The
+ * highlight classes (`is-selectable`) already exist in the SCSS.
  */
 class PlayerTurn {
     constructor(game, bga) {
         this.game = game;
         this.bga = bga;
+        this.args = null;
+        this.selectedDiscId = null;
+        /** Listeners attached this turn, torn down together on leaving the state. */
+        this.cleanup = [];
     }
     onEnteringState(args, isCurrentPlayerActive) {
-        this.bga.statusBar.setTitle(isCurrentPlayerActive
-            ? _('${you} would act here — Buy Shares and Build Tracks are not implemented yet')
-            : _('${actplayer} would act here — actions are not implemented yet'));
+        this.args = args;
+        this.selectedDiscId = null;
+        if (!isCurrentPlayerActive) {
+            this.bga.statusBar.setTitle(_('${actplayer} must take a disc from the market track'));
+            return;
+        }
+        this.promptForDisc();
     }
-    onLeavingState(args, isCurrentPlayerActive) {
+    onLeavingState(_args, _isCurrentPlayerActive) {
+        this.clearSelection();
+        this.args = null;
+    }
+    // ── Step 1: choose a disc ─────────────────────────────────────────────────────────────────
+    promptForDisc() {
+        this.clearSelection();
+        this.selectedDiscId = null;
+        this.bga.statusBar.setTitle(_('${you} must take a disc from the market track'));
+        for (const disc of this.args.market) {
+            const cell = this.marketCell(Number(disc.slot));
+            if (!cell)
+                continue;
+            cell.classList.add('is-selectable');
+            this.on(cell, () => this.onDiscPicked(Number(disc.id)));
+        }
+    }
+    onDiscPicked(discId) {
+        this.selectedDiscId = discId;
+        this.clearSelection();
+        const { canBuy, canBuild } = this.args;
+        if (canBuy && !canBuild)
+            return this.chooseBuy();
+        if (canBuild && !canBuy)
+            return this.promptForHex();
+        // First turn of the round: both tiles still in hand, so the player picks.
+        this.bga.statusBar.setTitle(_('${you} must choose an action for this disc'));
+        this.bga.statusBar.addActionButton(_('Buy Shares'), () => this.chooseBuy());
+        this.bga.statusBar.addActionButton(_('Build Tracks'), () => this.promptForHex());
+        this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
+    }
+    // ── Step 2a: Buy Shares ───────────────────────────────────────────────────────────────────
+    chooseBuy() {
+        this.clearSelection();
+        this.bga.actions.performAction('actBuyShare', { discId: this.selectedDiscId });
+    }
+    // ── Step 2b: Build Tracks ─────────────────────────────────────────────────────────────────
+    promptForHex() {
+        this.clearSelection();
+        const disc = this.args.market.find((d) => Number(d.id) === this.selectedDiscId);
+        if (!disc)
+            return this.promptForDisc();
+        // A company with nowhere legal to build goes on its frame instead, for -1.
+        if (this.args.blocked[disc.company]) {
+            this.bga.statusBar.setTitle(_('${you} cannot build this company anywhere — place it on its frame for -1'));
+            const frame = this.frameElement(disc.company);
+            if (frame) {
+                frame.classList.add('is-selectable');
+                this.on(frame, () => this.build(0));
+            }
+            this.bga.statusBar.addActionButton(_('Place on frame'), () => this.build(0));
+            this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
+            return;
+        }
+        this.bga.statusBar.setTitle(_('${you} must choose a hex to build on'));
+        for (const hexId of this.args.legalHexes[disc.company] ?? []) {
+            const hex = this.hexElement(Number(hexId));
+            if (!hex)
+                continue;
+            hex.classList.add('is-selectable');
+            this.on(hex, () => this.build(Number(hexId)));
+        }
+        this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
+    }
+    build(hexId) {
+        this.clearSelection();
+        this.bga.actions.performAction('actBuildTrack', { discId: this.selectedDiscId, hexId });
+    }
+    // ── DOM plumbing ──────────────────────────────────────────────────────────────────────────
+    root() {
+        return this.bga.gameArea.getElement();
+    }
+    /** Market cells are addressed by slot; the track is rendered in slot order. */
+    marketCell(slot) {
+        const cells = this.root().querySelectorAll('.mr-track--market .mr-cell');
+        return cells[slot] ?? null;
+    }
+    hexElement(hexId) {
+        return this.root().querySelector(`.mr-hex[data-hex-id="${hexId}"]`);
+    }
+    frameElement(company) {
+        return this.root().querySelector(`.mr-frame[data-company="${company}"]`);
+    }
+    on(el, handler) {
+        const wrapped = (e) => {
+            e.stopPropagation();
+            handler();
+        };
+        el.addEventListener('click', wrapped);
+        this.cleanup.push(() => el.removeEventListener('click', wrapped));
+    }
+    /** Drop every highlight and listener from the current step. */
+    clearSelection() {
+        for (const undo of this.cleanup)
+            undo();
+        this.cleanup = [];
+        for (const el of this.root().querySelectorAll('.is-selectable')) {
+            el.classList.remove('is-selectable');
+        }
+        this.bga.statusBar.removeActionButtons();
     }
 }
 
@@ -84,42 +194,95 @@ function hexesInRange(center, radius) {
     return out;
 }
 /**
- * A "flower": a hex and its six neighbours. The reference project's map artwork shows exactly this
- * shape — a centre hex ringed by six — with The Big City at the middle.
+ * A "flower": a hex and its six neighbours — the shape of one map TILE.
  */
 const flower = (center) => hexesInRange(center, 1);
+/** The Big City tile always occupies the centre slot (rulebook Game Setup step 2). */
+const BIG_CITY_TILE = 1;
+/** Local position 1 is a tile's centre space; 2..7 are its ring. */
+const POS_CENTRE = 1;
+const POSITIONS = [1, 2, 3, 4, 5, 6, 7];
 /**
- * ⚠️ PROVISIONAL MAP SHAPE — not confirmed against the rules or art.
+ * The ring directions, CLOCKWISE FROM NE — the order local positions 2..7 run in at rotation 0.
  *
- * The rulebook lists 7 map tiles with The Big City at the centre and six around it, but does not say
- * whether a "map tile" is ONE hex or a flower of seven. Seven single hexes cannot absorb the 60-72
- * discs the game uses, so a flower-of-flowers (7 tiles x 7 hexes = 49) is the reading that fits the
- * component counts. It remains a guess until the art files settle it.
+ *          ( 7 )   ( 2 )
+ *       ( 6 )   ( 1 )   ( 3 )
+ *          ( 5 )   ( 4 )
  *
- * Keep this as the ONLY place the map shape is defined so replacing it is a one-function change.
+ * NOT the same order as DIRECTIONS above, which is counter-clockwise from E and is used for
+ * adjacency. This one is the printed position numbering; they are different jobs.
  */
-function provisionalMap() {
-    const seen = new Set();
+const RING_CW = [
+    { q: +1, r: -1 }, // NE
+    { q: +1, r: 0 }, // E
+    { q: 0, r: +1 }, // SE
+    { q: -1, r: +1 }, // SW
+    { q: -1, r: 0 }, // W
+    { q: 0, r: -1 }, // NW
+];
+/**
+ * Where each of the 7 tile slots sits, as the axial coordinate of that tile's CENTRE space.
+ * Slot 0 is the middle; slots 1..6 run clockwise from the top.
+ *
+ * Tile centres are 3 apart, not 2. At distance 2 a space would be adjacent to two tile centres and
+ * the tiles overlap, collapsing 49 spaces to 31. Distance 3 tiles exactly — verified exhaustively
+ * across all 6^7 rotation combinations as 49 unique spaces, 0 collisions.
+ */
+const TILE_SLOTS = [
+    { q: 0, r: 0 }, // 0 centre
+    { q: +2, r: -3 }, // 1 N
+    { q: +3, r: -1 }, // 2 NE
+    { q: +1, r: +2 }, // 3 SE
+    { q: -2, r: +3 }, // 4 S
+    { q: -3, r: +1 }, // 5 SW
+    { q: -1, r: -2 }, // 6 NW
+];
+/**
+ * Where a local position lands, as an axial OFFSET from its tile's centre, once rotated.
+ * Rotation shifts the ring only — the centre space never moves.
+ */
+function positionOffset(position, rotation) {
+    if (position === POS_CENTRE)
+        return { q: 0, r: 0 };
+    return RING_CW[(position - 2 + rotation) % 6];
+}
+/** The absolute axial coordinate of a space. */
+function spaceAxial(slot, position, rotation) {
+    return hexAdd(TILE_SLOTS[slot], positionOffset(position, rotation));
+}
+/** The printed space id: tile*100 + face*10 + position. '314' = tile 3, side A, position 4. */
+const spaceCode = (tile, face, position) => String(tile * 100 + face * 10 + position);
+/** Expand placed tiles into the 49 board spaces. Mirrors Material::expandTiles(). */
+function expandTiles(tiles) {
     const out = [];
-    // Flower centres must be 3 steps apart, not 2. At distance 2 a hex can be adjacent to BOTH
-    // centres, so the flowers overlap: 7 x 7 collapsed to 31 unique hexes with 18 collisions when
-    // this was first written. Distance 3 is the "aperture 7" / spiral-honeycomb arrangement and
-    // tiles exactly — verified as 49 unique hexes, 0 overlaps.
-    const tileCentres = [
-        { q: 0, r: 0 },
-        { q: +1, r: +2 }, { q: +3, r: -1 }, { q: +2, r: -3 },
-        { q: -1, r: -2 }, { q: -3, r: +1 }, { q: -2, r: +3 },
-    ];
-    for (const c of tileCentres) {
-        for (const h of flower(c)) {
-            const k = hexKey(h);
-            if (!seen.has(k)) {
-                seen.add(k);
-                out.push(h);
-            }
+    for (const t of tiles) {
+        for (const position of POSITIONS) {
+            out.push({
+                hex: spaceAxial(t.slot, position, t.rotation),
+                tile: t.tile,
+                face: t.face,
+                position,
+                space: spaceCode(t.tile, t.face, position),
+            });
         }
     }
     return out;
+}
+/** Roll a random tile layout. Client-side only — for the preview; a table uses the server's. */
+function rollTiles(rand = Math.random) {
+    const outer = [1, 2, 3, 4, 5, 6, 7].filter((t) => t !== BIG_CITY_TILE);
+    for (let i = outer.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [outer[i], outer[j]] = [outer[j], outer[i]];
+    }
+    const slotOf = new Map([[BIG_CITY_TILE, 0]]);
+    outer.forEach((t, i) => slotOf.set(t, i + 1));
+    return [1, 2, 3, 4, 5, 6, 7].map((tile) => ({
+        tile,
+        face: (rand() < 0.5 ? 1 : 2),
+        rotation: Math.floor(rand() * 6),
+        slot: slotOf.get(tile),
+    }));
 }
 /** Axial -> CSS custom properties. Pixel arithmetic lives in _hex.scss, not here. */
 const hexStyleVars = (h) => `--mr-q:${h.q};--mr-r:${h.r}`;
@@ -194,6 +357,16 @@ function renderHex(spec) {
     node.setAttribute('style', hexStyleVars(hex));
     node.dataset.hex = hexKey(hex);
     node.dataset.terrain = terrain;
+    // The space's printed identity, kept on the element so a tile can be inspected on a live table
+    // without a server round trip.
+    if (spec.tile !== undefined)
+        node.dataset.tile = String(spec.tile);
+    if (spec.position !== undefined)
+        node.dataset.position = String(spec.position);
+    if (spec.space !== undefined)
+        node.dataset.space = spec.space;
+    if (spec.hexId !== undefined)
+        node.dataset.hexId = String(spec.hexId);
     if (disc) {
         node.appendChild(renderDisc(disc, 'on-hex'));
     }
@@ -306,7 +479,15 @@ function renderProfitBoard(spec) {
  * boundary; skipping that puts hexes at NaN and the board silently fails to draw.
  */
 const n = (v) => Number(v);
+/**
+ * Draw the whole board from gamedatas, replacing anything already there.
+ *
+ * A full redraw rather than incremental DOM updates: every component is still a CSS placeholder with
+ * no animation to preserve, and re-rendering from state cannot drift out of step with the server the
+ * way a pile of hand-written mutations can. Revisit when the art and animations land.
+ */
 function renderBoard(container, gamedatas) {
+    container.querySelector('.mr-root')?.remove();
     const root = document.createElement('div');
     root.className = 'mr-root';
     // ── Map ───────────────────────────────────────────────────────────────────────────────────
@@ -318,6 +499,10 @@ function renderBoard(container, gamedatas) {
         hex: { q: n(h.q), r: n(h.r) },
         terrain: h.terrain,
         disc: discByHexId.get(n(h.hex_id)),
+        tile: n(h.tile),
+        position: n(h.position),
+        space: h.space,
+        hexId: n(h.hex_id),
     }));
     const board = renderHexBoard(specs);
     root.appendChild(board);
@@ -360,10 +545,12 @@ function renderBoard(container, gamedatas) {
         }
         return slots;
     };
-    const taxed = Array.from({ length: 6 }, () => null);
+    // One taxed space per round — the area fills as the bag empties, so both run out together.
+    const taxedSlots = n(gamedatas.roundsTotal);
+    const taxed = Array.from({ length: taxedSlots }, () => null);
     for (const d of gamedatas.discs.taxed) {
         const i = n(d.arg);
-        if (i >= 0 && i < 6)
+        if (i >= 0 && i < taxedSlots)
             taxed[i] = d.company;
     }
     const market = renderMarketBoard({
@@ -401,58 +588,155 @@ class Game {
         // Declare the State classes
         this.playerTurn = new PlayerTurn(this, bga);
         this.bga.states.register('PlayerTurn', this.playerTurn);
-        // Uncomment the next line to show debug informations about state changes in the console. Remove before going to production!
-        // this.bga.states.logger = console.log;
-        // Here, you can init the global variables of your user interface
-        // Example:
-        // this.myGlobalValue = 0;
     }
     /*
         setup:
-        
+
         This method must set up the game user interface according to current game situation specified
         in parameters.
-        
+
         The method is called each time the game interface is displayed to a player, ie:
         _ when the game starts
         _ when a player refreshes the game page (F5)
-        
+
         "gamedatas" argument contains all datas retrieved by your "getAllDatas" PHP method.
     */
     setup(gamedatas) {
         console.log("Starting game setup");
         this.gamedatas = gamedatas;
         // The board renders entirely from gamedatas. Only the ART is still a placeholder.
-        renderBoard(this.bga.gameArea.getElement(), gamedatas);
-        // Setup game notifications to handle (see "setupNotifications" method below)
+        this.refresh();
         this.setupNotifications();
         console.log("Ending game setup");
     }
     ///////////////////////////////////////////////////
     //// Utility methods
-    /*
-    
-        Here, you can defines some utility methods that you can use everywhere in your javascript
-        script. Typically, functions that are used in multiple state classes or outside a state class.
-    
-    */
+    /**
+     * Redraw the board from the local copy of gamedatas.
+     *
+     * Notification handlers mutate `this.gamedatas` to match what the server just did and then call
+     * this. Keeping one render path means the board can never show something the state does not say.
+     */
+    refresh() {
+        renderBoard(this.bga.gameArea.getElement(), this.gamedatas);
+    }
+    get discs() {
+        return this.gamedatas.discs;
+    }
+    /** Pull a disc off the market track by id, returning it. */
+    takeFromMarket(discId) {
+        const i = this.discs.market.findIndex((d) => Number(d.id) === discId);
+        if (i < 0)
+            return undefined;
+        return this.discs.market.splice(i, 1)[0];
+    }
+    /**
+     * Mirror the server's marker move: the acting player's LEFTMOST order-track marker goes to the
+     * market track, into the slot of the disc they took. Markers are never destroyed — the same two
+     * per player shuttle between the tracks all game.
+     */
+    moveLeftmostOrderMarker(slot) {
+        const onOrder = this.gamedatas.markers
+            .filter((m) => m.track === 'order')
+            .sort((a, b) => Number(a.slot) - Number(b.slot));
+        const marker = onOrder[0];
+        if (!marker)
+            return;
+        marker.track = 'market';
+        marker.slot = slot;
+    }
+    setActionSpent(playerId, which) {
+        const player = this.gamedatas.players[playerId];
+        if (!player)
+            return;
+        if (which === 'buy')
+            player.buySpent = 1;
+        else
+            player.buildSpent = 1;
+    }
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
-    /*
-        setupNotifications:
-        
-        In this method, you associate each of your game notifications with your local method to handle it.
-        
-        Note: game notification names correspond to "bga->notify->all" calls in your Game.php file.
-    
-    */
     setupNotifications() {
         console.log('notifications subscriptions setup');
-        // automatically listen to the notifications, based on the `notif_xxx` function on this class. 
-        // Uncomment the logger param to see debug information in the console about notifications.
+        // Automatically listen to the notifications, based on the `notif_xxx` methods on this class.
         this.bga.notifications.setupPromiseNotifications({
         // logger: console.log
         });
+    }
+    /** Draw Phase: a fresh market track, and everyone gets both action tiles back. */
+    async notif_marketDrawn(args) {
+        this.discs.market = args.discs;
+        this.gamedatas.round = args.round;
+        this.gamedatas.bagCount = args.bagCount;
+        for (const player of Object.values(this.gamedatas.players)) {
+            player.buySpent = 0;
+            player.buildSpent = 0;
+        }
+        this.refresh();
+    }
+    /** Buy Shares: the disc lands on the buyer's Profit Board at 0. */
+    async notif_shareBought(args) {
+        const disc = this.takeFromMarket(Number(args.discId));
+        if (disc) {
+            this.discs.stocks.push({
+                id: args.discId,
+                company: args.company,
+                player: args.player_id,
+                value: args.value,
+            });
+        }
+        this.moveLeftmostOrderMarker(Number(args.slot));
+        this.setActionSpent(Number(args.player_id), 'buy');
+        this.refresh();
+    }
+    /**
+     * Build Tracks: the disc goes on a hex (or the company's frame if it is blocked), and every
+     * stock of that colour on every board moves by the hex's printed value.
+     */
+    async notif_trackBuilt(args) {
+        const disc = this.takeFromMarket(Number(args.discId));
+        if (disc) {
+            if (args.onFrame) {
+                this.discs.frame.push({ id: args.discId, company: args.company, arg: 0 });
+            }
+            else {
+                this.discs.hex.push({ id: args.discId, company: args.company, arg: args.hexId });
+            }
+        }
+        // The server sends every stock of this colour with its new value — a stock at a cap stays
+        // put while the others still move, so the values cannot be recomputed client-side.
+        this.discs.stocks = this.discs.stocks.filter((s) => s.company !== args.company);
+        this.discs.stocks.push(...args.stocks);
+        this.moveLeftmostOrderMarker(Number(args.slot));
+        this.setActionSpent(Number(args.player_id), 'build');
+        this.refresh();
+    }
+    /** Taxation: the one disc nobody took moves to the taxed area. */
+    async notif_discTaxed(args) {
+        const disc = this.takeFromMarket(Number(args.discId));
+        if (disc) {
+            this.discs.taxed.push({ id: args.discId, company: args.company, arg: args.slot });
+        }
+        this.refresh();
+    }
+    /** Taxation: the market track, gap closed, becomes next round's order track. */
+    async notif_tracksFlipped(args) {
+        this.gamedatas.markers = args.markers;
+        this.refresh();
+    }
+    /** Game end: which companies were taxed. Kept for the log; the eliminations follow per player. */
+    async notif_finalScored(_args) {
+    }
+    /**
+     * Game end, per player: the stocks eliminated by the taxed/untaxed inversion leave the Profit
+     * Board, so what remains is exactly what was scored.
+     *
+     * The player-panel score is updated by the framework's own score counter, not from here.
+     */
+    async notif_scoreBreakdown(args) {
+        const gone = new Set(args.removed.map((r) => Number(r.id)));
+        this.discs.stocks = this.discs.stocks.filter((s) => !gone.has(Number(s.id)));
+        this.refresh();
     }
 }
 

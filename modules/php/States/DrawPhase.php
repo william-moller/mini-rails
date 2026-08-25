@@ -39,14 +39,9 @@ class DrawPhase extends GameState
 
     function onEnteringState()
     {
+        // Whether another round happens at all is decided by the taxed area, in TaxationPhase —
+        // reaching here means one is starting. The counter is for display and progression only.
         $round = $this->game->currentRound() + 1;
-
-        // The game lasts exactly 6 rounds — the taxed area holds one disc per round and fills as the
-        // bag empties, so both run out together.
-        if ($round > Material::ROUNDS) {
-            return EndScore::class;
-        }
-
         $this->game->setRound($round);
 
         $placed = $this->game->drawMarket();

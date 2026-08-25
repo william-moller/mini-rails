@@ -48,6 +48,37 @@ building where it lifts the stock you hold and sinks the ones you don't.
 | 72 | Train Company Discs (**12 each of 6 company colours**) |
 | 1 | Cloth bag |
 
+### Map tiles — structure (confirmed)
+
+A **map tile** is a hexagonal tile carrying **7 hex spaces**: a centre plus a ring of six. Seven
+tiles laid out as a flower-of-flowers give a **49-space board**. Confirmed from the publisher tile
+scans in [`../../_reference/minirails/img/`](../../_reference/minirails/img/) (`wheel_0/1/2.png`),
+which are labelled with the rulebook's own tile ids — **1A, 2A, 3A** — and each show a ring of six
+spaces around a centre. **Tile 1 is The Big City tile**, carrying it on its centre space.
+
+This resolves the old ambiguity: the rulebook never says whether a "map tile" is one hex or a flower
+of seven, and 7 single hexes could not absorb 60–72 discs.
+
+Every tile is **randomly flipped** (side A or B, 50/50) and **randomly rotated** (0–5, in 60°
+steps); the six non-Big-City tiles are **randomly placed** around the centre. The two faces of a tile
+carry **different space layouts**, and that is where between-game variety comes from.
+
+Spaces are identified by a 3-digit **space code**, `tile * 100 + face * 10 + position`, where face is
+1 for A and 2 for B, and position is 1 for the tile's centre with 2–7 running clockwise from NE:
+
+```
+     ( 7 )   ( 2 )          '314' = tile 3, side A, position 4
+  ( 6 )   ( 1 )   ( 3 )     '721' = tile 7, side B, position 1
+     ( 5 )   ( 4 )
+```
+
+Rotation shifts the **ring only** — a tile's centre space never moves, which is why The Big City
+stays put however tile 1 is rotated. Position numbers are printed on the tile and never change;
+rotation changes only where a position *lands* on the board.
+
+⚠️ **Which terrain sits on which space is still provisional** — see `Material::TERRAIN_BY_SPACE`.
+The structure above is not.
+
 ## Setup
 
 1. Build the 6 map frames together. Frame colour order does not matter, but **all frames must show
@@ -159,9 +190,8 @@ wins. Scoring must not assume a positive winner or clamp at zero.
 
 - **Second-edition deltas.** Everything above is 1st edition. Highest priority is the **1–2 player
   rules**, which do not exist in our source at all.
-- **Hex distribution.** The rulebook gives terrain *values* but not how many of each terrain type
-  appear per map tile, nor what is on each tile's two sides. That needs the art files or the physical
-  tiles.
+- **Hex distribution.** The rulebook gives terrain *values* but not which terrain sits on which
+  space. That needs the art files or the physical tiles. **The tile *shape* is settled** — see below.
 - **Starting hex positions.** The 3-player and 4/5-player layouts differ, and the starting hexes are
   only shown as diagrams. The reference implementation encodes concrete coordinates — a cross-check,
   not a source; re-derive from the rulebook or art.
