@@ -89,6 +89,24 @@ export interface HexSpec {
     space?: string;
     /** Server hex_id. The key actions address a hex by, so it must reach the DOM. */
     hexId?: number;
+    /** Company whose frame arrow marks this hex as a starting hex, if any. */
+    startFor?: Company;
+}
+
+/**
+ * One of the 6 Map Frames, drawn in the ring around the board.
+ *
+ * `hex` is a VIRTUAL axial anchor outside the map, not a board space — the frame is a physical
+ * piece cupping one outer tile, so it is positioned by the same axial-to-pixel arithmetic as a hex
+ * and then rotated to face inward.
+ */
+export interface FrameSpec {
+    company: Company;
+    hex: Hex;
+    /** 1..6, the outer tile slot this frame cups. Drives which way the piece faces. */
+    slot: number;
+    /** How many of this company's discs are parked here, blocked off the map. */
+    discs: number;
 }
 
 export function renderHex(spec: HexSpec): HTMLElement {
@@ -110,9 +128,17 @@ export function renderHex(spec: HexSpec): HTMLElement {
         node.appendChild(el('div', 'mr-hex__value', signed(TERRAIN_VALUE[terrain])));
         node.appendChild(el('div', 'mr-hex__name', TERRAIN_LABEL[terrain]));
     }
+    // A hex one of the frame arrows points at. Drawn even once a disc covers it, so the opening
+    // layout stays readable.
+    if (spec.startFor) {
+        node.classList.add('is-start');
+        node.dataset.startFor = spec.startFor;
+        node.appendChild(el('div', `mr-hex__start mr-hex__start--${spec.startFor}`));
+    }
     node.setAttribute(
         'aria-label',
-        `${TERRAIN_LABEL[terrain]} ${signed(TERRAIN_VALUE[terrain])}${disc ? `, ${disc} track` : ''}`,
+        `${TERRAIN_LABEL[terrain]} ${signed(TERRAIN_VALUE[terrain])}${disc ? `, ${disc} track` : ''}` +
+            (spec.startFor ? `, ${spec.startFor} starting hex` : ''),
     );
     return node;
 }
@@ -121,22 +147,29 @@ export function renderHex(spec: HexSpec): HTMLElement {
  * Renders the board and sizes its container from the axial extent, so the caller never computes
  * pixels. Keep the arithmetic here consistent with the left/top rules in _hex.scss.
  */
-export function renderHexBoard(specs: HexSpec[]): HTMLElement {
+export function renderHexBoard(specs: HexSpec[], frames: FrameSpec[] = []): HTMLElement {
     const board = el('div', 'mr-hex-board');
     if (!specs.length) return board;
 
-    const cols = specs.map((s) => s.hex.q + s.hex.r / 2);
-    const rows = specs.map((s) => s.hex.r);
+    // The frame anchors sit OUTSIDE the map, so they have to be normalised and measured alongside
+    // the hexes — otherwise the ring is clipped by a board box sized to the hexes alone.
+    const anchors = [...specs.map((s) => s.hex), ...frames.map((f) => f.hex)];
+    const cols = anchors.map((h) => h.q + h.r / 2);
+    const rows = anchors.map((h) => h.r);
     const minCol = Math.min(...cols);
     const minRow = Math.min(...rows);
 
+    const shift = (h: Hex): Hex => ({
+        q: h.q - Math.round(minCol) - Math.round(minRow) / 2,
+        r: h.r - minRow,
+    });
+
     for (const spec of specs) {
         // Normalise so the top-left hex sits at 0,0 without negative offsets.
-        const shifted: HexSpec = {
-            ...spec,
-            hex: { q: spec.hex.q - Math.round(minCol) - Math.round(minRow) / 2, r: spec.hex.r - minRow },
-        };
-        board.appendChild(renderHex(shifted));
+        board.appendChild(renderHex({ ...spec, hex: shift(spec.hex) }));
+    }
+    for (const frame of frames) {
+        board.appendChild(renderFrame({ ...frame, hex: shift(frame.hex) }));
     }
 
     const width = Math.max(...cols) - minCol + 1;
@@ -146,12 +179,22 @@ export function renderHexBoard(specs: HexSpec[]): HTMLElement {
     return board;
 }
 
-/** A company frame — where a blocked company's disc goes, for -1. */
-export function renderFrame(company: Company, discs: Company[] = []): HTMLElement {
+/**
+ * One Map Frame in the ring: the company's home edge, and where its disc goes when the company is
+ * blocked off the map entirely (for -1).
+ *
+ * Placeholder art. The real piece is a chevron whose inner edge cups the outer tile and whose three
+ * inward arrows mark the starting hexes; those hexes carry their own marker, so this draws the
+ * colour, the facing and the parked discs only.
+ */
+export function renderFrame(spec: FrameSpec): HTMLElement {
+    const { company, slot, discs } = spec;
     const f = el('div', `mr-frame mr-frame--${company}`);
+    f.setAttribute('style', `${hexStyleVars(spec.hex)} --mr-frame-facing: ${(slot - 1) * 60}deg;`);
     f.dataset.company = company;
-    f.setAttribute('aria-label', `${company} company frame, ${discs.length} discs`);
-    if (discs.length) f.appendChild(renderDisc(company, 'on-hex'));
+    f.dataset.slot = String(slot);
+    f.setAttribute('aria-label', `${company} company frame${discs ? `, ${discs} blocked discs` : ''}`);
+    if (discs) f.appendChild(renderDisc(company, 'on-hex'));
     return f;
 }
 

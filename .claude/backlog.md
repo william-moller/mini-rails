@@ -43,9 +43,13 @@ Not ranked.
   transcription slip is the other candidate. `TERRAIN_BY_SPACE` currently carries the scan for 1A and
   a placeholder for 1B, so nothing is wrong today — this only decides what 1B becomes. Needs one
   look at a physical tile, naming the face and one starting space.
-- **Confirm the starting-hex layout.** `setupMap()` seeds each company on the spaces furthest from
-  the map centre on one randomly-assigned outer tile. The rulebook shows the real layout only as
-  diagrams, and the 3-player layout differs from the 4/5-player one.
+- **Confirm which hex a frame's primary arrow marks.** A frame abuts four perimeter hexes and
+  carries three arrows, so one abutted hex is never marked — but which, and which of the marked ones
+  is the primary, is a guess. `Material::FRAME_ARROW_PRIMARY` / `FRAME_ARROW_SECONDARY` hold it as
+  two small numbers keyed to `FRAME_PERIMETER_CW`; the current guess puts the primary on a tip hex
+  and the secondaries on the other tip and one flanker. Reading it off a physical frame changes
+  those numbers and nothing else. The 1:1 frame-to-tile geometry around them is verified, not
+  guessed.
 - **Copy the `bga-cards` / `bga-animations` typings** from `../ugly-christmas-sweater/` if the client
   needs them (`bga-framework.d.ts` came with the skeleton). Dev-only; they never deploy.
 - **Set project status** to "development started" in Control Panel → Manage Games.
@@ -66,10 +70,6 @@ Not ranked.
 - **Give the cloth bag a spot in the layout.** `bagCount` already reaches the client in `getAllDatas`
   and nothing renders it. It is purely a random-draw source, so it needs a place to sit and a count,
   not a component model.
-- **Settle what a frame tile's A/B side does.** The rulebook says all six frames must show the same
-  side to connect, but not whether the side changes anything else. Until that is known the frame
-  stays modelled as a disc *location* only, with no entity, side or map-edge position — and
-  `renderFrame()` still draws at most one disc however many are on it.
 
 ## Before the first test table
 

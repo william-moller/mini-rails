@@ -98,6 +98,30 @@ CREATE TABLE IF NOT EXISTS `tile` (
 
 
 -- =====================================================================
+-- frame : the 6 Map Frames, as built for this game.
+--
+-- The frames clip together into a ring around the map, one per company colour, and each one CUPS
+-- ONE OUTER TILE — so `slot` here is the same slot as in `tile`, and slot 0 (The Big City, in the
+-- middle) never appears.
+--
+-- Why a table and not static data: the rulebook's Game Setup step 1 says frame colour order does
+-- not matter, so which company sits against which tile is randomised per game. That mapping decides
+-- where every company's starting discs go, so it has to survive a reload.
+--
+-- `face` is the A/B side the ring was built showing. All six must match for the pieces to connect,
+-- so it is one value repeated, and it is COSMETIC — both faces carry the same arrows. It is stored
+-- per row rather than as a global only because it belongs to the piece, not to the game.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS `frame` (
+  `slot` TINYINT UNSIGNED NOT NULL,
+  `company` VARCHAR(8) NOT NULL,
+  `face` TINYINT UNSIGNED NOT NULL,
+  PRIMARY KEY (`slot`),
+  UNIQUE KEY `idx_frame_company` (`company`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- =====================================================================
 -- hex : the 49 board SPACES, expanded from `tile` at setup.
 -- A table rather than static data because the rulebook randomises the map every game: the six
 -- non-central tiles are placed randomly around The Big City, and each tile's facing and orientation

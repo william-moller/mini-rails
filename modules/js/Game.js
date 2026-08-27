@@ -374,28 +374,42 @@ function renderHex(spec) {
         node.appendChild(el('div', 'mr-hex__value', signed(TERRAIN_VALUE[terrain])));
         node.appendChild(el('div', 'mr-hex__name', TERRAIN_LABEL[terrain]));
     }
-    node.setAttribute('aria-label', `${TERRAIN_LABEL[terrain]} ${signed(TERRAIN_VALUE[terrain])}${disc ? `, ${disc} track` : ''}`);
+    // A hex one of the frame arrows points at. Drawn even once a disc covers it, so the opening
+    // layout stays readable.
+    if (spec.startFor) {
+        node.classList.add('is-start');
+        node.dataset.startFor = spec.startFor;
+        node.appendChild(el('div', `mr-hex__start mr-hex__start--${spec.startFor}`));
+    }
+    node.setAttribute('aria-label', `${TERRAIN_LABEL[terrain]} ${signed(TERRAIN_VALUE[terrain])}${disc ? `, ${disc} track` : ''}` +
+        (spec.startFor ? `, ${spec.startFor} starting hex` : ''));
     return node;
 }
 /**
  * Renders the board and sizes its container from the axial extent, so the caller never computes
  * pixels. Keep the arithmetic here consistent with the left/top rules in _hex.scss.
  */
-function renderHexBoard(specs) {
+function renderHexBoard(specs, frames = []) {
     const board = el('div', 'mr-hex-board');
     if (!specs.length)
         return board;
-    const cols = specs.map((s) => s.hex.q + s.hex.r / 2);
-    const rows = specs.map((s) => s.hex.r);
+    // The frame anchors sit OUTSIDE the map, so they have to be normalised and measured alongside
+    // the hexes — otherwise the ring is clipped by a board box sized to the hexes alone.
+    const anchors = [...specs.map((s) => s.hex), ...frames.map((f) => f.hex)];
+    const cols = anchors.map((h) => h.q + h.r / 2);
+    const rows = anchors.map((h) => h.r);
     const minCol = Math.min(...cols);
     const minRow = Math.min(...rows);
+    const shift = (h) => ({
+        q: h.q - Math.round(minCol) - Math.round(minRow) / 2,
+        r: h.r - minRow,
+    });
     for (const spec of specs) {
         // Normalise so the top-left hex sits at 0,0 without negative offsets.
-        const shifted = {
-            ...spec,
-            hex: { q: spec.hex.q - Math.round(minCol) - Math.round(minRow) / 2, r: spec.hex.r - minRow },
-        };
-        board.appendChild(renderHex(shifted));
+        board.appendChild(renderHex({ ...spec, hex: shift(spec.hex) }));
+    }
+    for (const frame of frames) {
+        board.appendChild(renderFrame({ ...frame, hex: shift(frame.hex) }));
     }
     const width = Math.max(...cols) - minCol + 1;
     const height = Math.max(...rows) - minRow + 1;
@@ -403,12 +417,22 @@ function renderHexBoard(specs) {
     board.style.height = `calc((var(--mr-hex-h) + var(--mr-hex-gap)) * (0.75 * ${height} + 0.25))`;
     return board;
 }
-/** A company frame — where a blocked company's disc goes, for -1. */
-function renderFrame(company, discs = []) {
+/**
+ * One Map Frame in the ring: the company's home edge, and where its disc goes when the company is
+ * blocked off the map entirely (for -1).
+ *
+ * Placeholder art. The real piece is a chevron whose inner edge cups the outer tile and whose three
+ * inward arrows mark the starting hexes; those hexes carry their own marker, so this draws the
+ * colour, the facing and the parked discs only.
+ */
+function renderFrame(spec) {
+    const { company, slot, discs } = spec;
     const f = el('div', `mr-frame mr-frame--${company}`);
+    f.setAttribute('style', `${hexStyleVars(spec.hex)} --mr-frame-facing: ${(slot - 1) * 60}deg;`);
     f.dataset.company = company;
-    f.setAttribute('aria-label', `${company} company frame, ${discs.length} discs`);
-    if (discs.length)
+    f.dataset.slot = String(slot);
+    f.setAttribute('aria-label', `${company} company frame${discs ? `, ${discs} blocked discs` : ''}`);
+    if (discs)
         f.appendChild(renderDisc(company, 'on-hex'));
     return f;
 }
@@ -503,17 +527,27 @@ function renderBoard(container, gamedatas) {
         position: n(h.position),
         space: h.space,
         hexId: n(h.hex_id),
+        startFor: (h.is_start_for ?? undefined),
     }));
-    const board = renderHexBoard(specs);
+    // ── Map frames ────────────────────────────────────────────────────────────────────────────
+    // The ring around the board, one frame per company, each cupping the outer tile in its slot.
+    //
+    // A slot's centre sits 3 hexes from the middle and the board reaches 4, so scaling the slot
+    // vector to 5 puts the frame just outside the map on the same radial line — no separate table
+    // of frame positions to keep in step with TILE_SLOTS.
+    const OUTSIDE = 5 / 3;
+    const frameSpecs = gamedatas.frames.map((fr) => {
+        const slot = n(fr.slot);
+        const [cq, cr] = gamedatas.tileSlots[String(slot)];
+        return {
+            company: fr.company,
+            slot,
+            hex: { q: n(cq) * OUTSIDE, r: n(cr) * OUTSIDE },
+            discs: gamedatas.discs.frame.filter((d) => d.company === fr.company).length,
+        };
+    });
+    const board = renderHexBoard(specs, frameSpecs);
     root.appendChild(board);
-    // ── Company frames ────────────────────────────────────────────────────────────────────────
-    const framesRow = document.createElement('div');
-    framesRow.className = 'mr-frames';
-    for (const company of gamedatas.companies) {
-        const onFrame = gamedatas.discs.frame.filter((d) => d.company === company);
-        framesRow.appendChild(renderFrame(company, onFrame.map((d) => d.company)));
-    }
-    root.appendChild(framesRow);
     // ── Central Market Board ──────────────────────────────────────────────────────────────────
     const len = n(gamedatas.trackLength);
     const colorOf = (playerId) => {

@@ -12,9 +12,9 @@
 import {
     Company,
     Terrain,
+    FrameSpec,
     HexSpec,
     TrackSlot,
-    renderFrame,
     renderHexBoard,
     renderMarketBoard,
     renderProfitBoard,
@@ -59,18 +59,29 @@ export function renderBoard(
         position: n(h.position),
         space: h.space,
         hexId: n(h.hex_id),
+        startFor: (h.is_start_for ?? undefined) as Company | undefined,
     }));
-    const board = renderHexBoard(specs);
-    root.appendChild(board);
 
-    // ── Company frames ────────────────────────────────────────────────────────────────────────
-    const framesRow = document.createElement('div');
-    framesRow.className = 'mr-frames';
-    for (const company of gamedatas.companies) {
-        const onFrame = gamedatas.discs.frame.filter((d) => d.company === company);
-        framesRow.appendChild(renderFrame(company as Company, onFrame.map((d) => d.company as Company)));
-    }
-    root.appendChild(framesRow);
+    // ── Map frames ────────────────────────────────────────────────────────────────────────────
+    // The ring around the board, one frame per company, each cupping the outer tile in its slot.
+    //
+    // A slot's centre sits 3 hexes from the middle and the board reaches 4, so scaling the slot
+    // vector to 5 puts the frame just outside the map on the same radial line — no separate table
+    // of frame positions to keep in step with TILE_SLOTS.
+    const OUTSIDE = 5 / 3;
+    const frameSpecs: FrameSpec[] = gamedatas.frames.map((fr) => {
+        const slot = n(fr.slot);
+        const [cq, cr] = gamedatas.tileSlots[String(slot)];
+        return {
+            company: fr.company as Company,
+            slot,
+            hex: { q: n(cq) * OUTSIDE, r: n(cr) * OUTSIDE },
+            discs: gamedatas.discs.frame.filter((d) => d.company === fr.company).length,
+        };
+    });
+
+    const board = renderHexBoard(specs, frameSpecs);
+    root.appendChild(board);
 
     // ── Central Market Board ──────────────────────────────────────────────────────────────────
     const len = n(gamedatas.trackLength);

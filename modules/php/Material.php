@@ -142,6 +142,107 @@ class Material
         6 => [-1, -2],  // NW
     ];
 
+    // == Map frames ===========================================================================
+    //
+    // Six frame pieces, one per company colour, built into a ring around the map (rulebook Game
+    // Setup step 1). Each frame CUPS ONE OUTER TILE, so frame <-> tile slot is 1:1, and each carries
+    // arrows pointing inward at that company's starting hexes: one PRIMARY and two SECONDARY.
+    //
+    // The arrows target BOARD COORDINATES, not printed spaces. A tile's rotation permutes which
+    // space lands on a given hex, but the hexes a frame abuts never move — so a frame's targets are
+    // a property of its SLOT alone, and the six slots are one set rotated six ways.
+
+    /** The outer tile slots, in ring order. Slot 0 — the centre, The Big City — has no frame. */
+    public const FRAME_SLOTS = [1, 2, 3, 4, 5, 6];
+
+    /**
+     * Frame faces. Both faces carry the SAME arrows: the A/B marking exists so the six pieces
+     * interlock and the ring shows one continuous artwork, and nothing in the rules reads it. Rolled
+     * once at setup — all six must match to connect — and sent to the client for rendering only.
+     */
+    public const FRAME_FACE_A = 1;
+    public const FRAME_FACE_B = 2;
+    public const FRAME_FACES = [self::FRAME_FACE_A, self::FRAME_FACE_B];
+
+    /**
+     * The four hexes a frame fronts onto, as indices into RING_CW, listed clockwise, for slot 1.
+     *
+     * COMPUTED, NOT INVENTED. A board hex is on the perimeter if it has a side facing off-board.
+     * Every outer slot has exactly four such hexes: two at distance 4 from the map centre — the tip
+     * of the tile's bulge — flanked by two at distance 3. For slot 1 those are W, NW, NE, E. Slot k
+     * is the same set rotated by (k - 1), which is why only one list is stored.
+     */
+    public const FRAME_PERIMETER_CW = [4, 5, 0, 1];  // W, NW, NE, E
+
+    /**
+     * ⚠️ PROVISIONAL. Which of those four hexes the three arrows mark, as positions within
+     * FRAME_PERIMETER_CW (0 = W, 1 = NW, 2 = NE, 3 = E on slot 1).
+     *
+     * Confirmed: a frame carries one primary and two secondary arrows, and 4 hexes with 3 arrows
+     * means ONE abutted hex is never marked. Rulebook Game Setup step 4 then reads: 3 players seed
+     * all three arrows, 4 and 5 players seed the primary only.
+     *
+     * NOT confirmed: WHICH of the four goes unmarked. The guess below puts the primary on a tip hex
+     * and the secondaries on the other tip and one flanker, because the primary arrow sits centrally
+     * on the piece. Reading it off a physical frame changes these three numbers and nothing else.
+     */
+    public const FRAME_ARROW_PRIMARY = 1;
+    public const FRAME_ARROW_SECONDARY = [2, 0];
+
+    /**
+     * The four board hexes a slot's frame abuts, clockwise.
+     *
+     * @return array list of [q, r]
+     */
+    public static function framePerimeter(int $slot): array
+    {
+        [$cq, $cr] = self::TILE_SLOTS[$slot];
+        $out = [];
+        foreach (self::FRAME_PERIMETER_CW as $index) {
+            [$dq, $dr] = self::RING_CW[($index + $slot - 1) % 6];
+            $out[] = [$cq + $dq, $cr + $dr];
+        }
+        return $out;
+    }
+
+    /**
+     * The hexes a slot's frame seeds with starting discs, PRIMARY FIRST.
+     *
+     * 3 players take all three arrows, 4 and 5 players take the primary alone — so the caller passes
+     * SETUP[playerCount]['start'] and the slice does the rest.
+     *
+     * @return array list of [q, r]
+     */
+    public static function frameStartHexes(int $slot, int $count): array
+    {
+        $perimeter = self::framePerimeter($slot);
+        $arrows = [$perimeter[self::FRAME_ARROW_PRIMARY]];
+        foreach (self::FRAME_ARROW_SECONDARY as $position) {
+            $arrows[] = $perimeter[$position];
+        }
+        return array_slice($arrows, 0, $count);
+    }
+
+    /**
+     * Deal the six frames onto the six outer slots.
+     *
+     * Colour order round the ring is RANDOM: the rulebook's Game Setup step 1 says frame colour
+     * order does not matter, so which company sits against which tile is a per-game variable and one
+     * of the few things that changes the opening position.
+     *
+     * @return array list of ['slot' => int, 'company' => string]
+     */
+    public static function rollFrames(): array
+    {
+        $companies = self::shuffled(self::COMPANIES);
+
+        $out = [];
+        foreach (self::FRAME_SLOTS as $i => $slot) {
+            $out[] = ['slot' => $slot, 'company' => $companies[$i]];
+        }
+        return $out;
+    }
+
     /**
      * ⚠️ PARTLY PROVISIONAL SPACE DATA. Sides 1A, 2A and 3A are real; everything else is invented.
      *
@@ -261,6 +362,23 @@ class Material
     }
 
     /**
+     * Fisher-Yates through bga_rand().
+     *
+     * PHP's shuffle() draws from an RNG the framework knows nothing about, so anything shuffled with
+     * it is NOT reproduced when BGA replays a game from a bug report — the map would come back
+     * different from the one the report is about. Every random choice in this file goes through
+     * bga_rand() for that reason.
+     */
+    private static function shuffled(array $items): array
+    {
+        for ($i = count($items) - 1; $i > 0; $i--) {
+            $j = bga_rand(0, $i);
+            [$items[$i], $items[$j]] = [$items[$j], $items[$i]];
+        }
+        return $items;
+    }
+
+    /**
      * Roll a random map: every tile gets a random face and rotation, The Big City tile takes the
      * centre slot, and the other six are shuffled around it (rulebook Game Setup step 2).
      *
@@ -271,8 +389,7 @@ class Material
      */
     public static function rollTiles(): array
     {
-        $outer = array_values(array_diff(self::TILES, [self::BIG_CITY_TILE]));
-        shuffle($outer);
+        $outer = self::shuffled(array_values(array_diff(self::TILES, [self::BIG_CITY_TILE])));
 
         $placed = [self::BIG_CITY_TILE => 0];
         foreach ($outer as $i => $tileId) {

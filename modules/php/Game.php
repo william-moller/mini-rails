@@ -93,6 +93,31 @@ class Game extends \Bga\GameFramework\Table
         );
     }
 
+    /**
+     * The 6 map frames as built for this game, in ring order.
+     *
+     * Each carries the hexes its arrows point at, so the client can draw the starting markers
+     * without repeating the geometry. `startHexes` is primary-first and holds all three arrows
+     * whatever the player count — the client draws the ring, the server decides what got seeded.
+     */
+    public function getFrames(): array
+    {
+        $frames = $this->getObjectListFromDB(
+            'SELECT `slot`, `company`, `face` FROM `frame` ORDER BY `slot`'
+        );
+
+        foreach ($frames as &$frame) {
+            $slot = (int) $frame['slot'];
+            $frame['slot']       = $slot;
+            $frame['face']       = (int) $frame['face'];
+            $frame['abuts']      = Material::framePerimeter($slot);
+            $frame['startHexes'] = Material::frameStartHexes($slot, 3);
+        }
+        unset($frame);
+
+        return $frames;
+    }
+
     public function getMarkers(): array
     {
         return $this->getObjectListFromDB(
@@ -158,6 +183,7 @@ class Game extends \Bga\GameFramework\Table
 
         $result['tiles']       = $this->getTiles();
         $result['tileSlots']   = Material::TILE_SLOTS;
+        $result['frames']      = $this->getFrames();
         $result['hexes']       = array_values($this->getHexes());
         $result['markers']     = $this->getMarkers();
         $result['discs']       = $this->getBoardDiscs();
@@ -238,32 +264,42 @@ class Game extends \Bga\GameFramework\Table
 
         $spaces = Material::expandTiles($tiles);
 
-        // Each company is seeded on one of the six OUTER tiles — "next to their respective frame
-        // colours". Which outer tile belongs to which company is randomised per game.
+        // The six map frames are built into a ring around the board, one per company colour, each
+        // one cupping a single outer tile (rulebook Game Setup step 1). A frame's inward-pointing
+        // arrows ARE that company's starting hexes: 3 players seed all three, 4 and 5 players seed
+        // the primary alone (Game Setup step 4).
         //
-        // ⚠️ PROVISIONAL. The rulebook shows the starting hexes as diagrams only, and the 3-player
-        // layout differs from the 4/5-player one. Choosing the spaces furthest from the map centre
-        // is a stand-in that puts them against the frame, which is what the diagrams show.
-        $spacesBySlot = [];
+        // This reads the frame ring, not the tiles. The arrows target board coordinates, so which
+        // tile landed in a slot — and how it was rotated — never moves a starting hex.
+        $frames = Material::rollFrames();
+        $face = Material::FRAME_FACES[bga_rand(0, count(Material::FRAME_FACES) - 1)];
+
+        $frameRows = [];
+        foreach ($frames as $f) {
+            $frameRows[] = sprintf("(%d, '%s', %d)", $f['slot'], $f['company'], $face);
+        }
+        static::DbQuery(
+            'INSERT INTO `frame` (`slot`, `company`, `face`) VALUES ' . implode(',', $frameRows)
+        );
+
+        $indexByAxial = [];
         foreach ($spaces as $i => $s) {
-            $slot = $this->slotOfTile($tiles, $s['tile']);
-            $spacesBySlot[$slot][] = $i;
+            $indexByAxial[$s['q'] . ',' . $s['r']] = $i;
         }
 
-        $outerSlots = [1, 2, 3, 4, 5, 6];
-        shuffle($outerSlots);
-
         $startClaim = [];
-        foreach (Material::COMPANIES as $i => $company) {
-            $candidates = $spacesBySlot[$outerSlots[$i]];
-            // Furthest from the map centre first — those sit against the frame.
-            usort($candidates, function ($a, $b) use ($spaces) {
-                return Material::distance($spaces[$b]['q'], $spaces[$b]['r'], 0, 0)
-                     <=> Material::distance($spaces[$a]['q'], $spaces[$a]['r'], 0, 0);
-            });
-            // Claim ONLY the spaces that will actually receive a disc, so is_start_for matches
-            // where the discs land rather than marking the whole tile.
-            $startClaim[$company] = array_slice($candidates, 0, $startPerCompany);
+        foreach ($frames as $f) {
+            $indices = [];
+            foreach (Material::frameStartHexes($f['slot'], $startPerCompany) as [$q, $r]) {
+                $key = $q . ',' . $r;
+                if (!isset($indexByAxial[$key])) {
+                    throw new \BgaVisibleSystemException(
+                        "Frame on slot {$f['slot']} points at [$q,$r], which is not on the board"
+                    );
+                }
+                $indices[] = $indexByAxial[$key];
+            }
+            $startClaim[$f['company']] = $indices;
         }
 
         $claimBySpace = [];
@@ -306,17 +342,6 @@ class Game extends \Bga\GameFramework\Table
             $out[$company] = $ids;
         }
         return $out;
-    }
-
-    /** Which board slot a given tile was placed in. */
-    private function slotOfTile(array $tiles, int $tileId): int
-    {
-        foreach ($tiles as $t) {
-            if ($t['tile'] === $tileId) {
-                return $t['slot'];
-            }
-        }
-        throw new \BgaVisibleSystemException("Tile $tileId was not placed");
     }
 
     /**

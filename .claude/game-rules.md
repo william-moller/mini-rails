@@ -113,15 +113,39 @@ with no negative space except its centre.
    | 4 | 1 | 9 | 10 |
    | 5 | 1 | 11 | 12 |
 
-   Starting discs go on the starting hexes **next to their respective frame colours**. Note that 5
-   players uses all 12 discs of each colour (72 total), while 3 and 4 players use 10 each (60).
-   The **3-player map layout differs** from the 4–5 player layout — the rulebook shows two diagrams.
+   Starting discs go on the starting hexes **next to their respective frame colours** — the hexes
+   that company's frame arrows point at (see *Map frames* below). Note that 5 players uses all 12
+   discs of each colour (72 total), while 3 and 4 players use 10 each (60).
 
 5. Each player takes 2 order markers, 1 Profit Board, and 2 action tiles in their colour.
 6. Start player is whoever most recently bought a train ticket. **Clockwise** from the start player,
    each places 1 marker on the leftmost free space of the order track; then **counter-clockwise**
    from the last player, each places their second marker. For players A–E this yields
    **A B C D E E D C B A** — a snake, so the first player is also the last.
+
+### Map frames
+
+Six chevron pieces, one per company colour, clip together into a ring around the board. Each frame
+**cups exactly one outer tile**, so frame ↔ tile slot is 1:1 and the ring covers all 24 perimeter
+hexes, four per frame, with no overlap — verified against `Material::TILE_SLOTS`.
+
+A frame does two jobs:
+
+- **It marks that company's starting hexes.** Three arrows point inward: one **primary** and two
+  **secondary**. 3 players seed all three; 4 and 5 players seed the primary alone. That is what the
+  rulebook's two setup diagrams are — not two different maps, just how many arrows you use.
+- **It is where a blocked company's disc goes** when that company has no legal hex anywhere, for −1.
+
+The arrows target **board coordinates, not printed spaces**. A tile's rotation changes which space
+lands on a given hex, but never moves the hex a frame abuts, so the starting layout is a property of
+the slot alone. Colour order around the ring is **random** — the rulebook says it does not matter —
+and that randomisation is the main thing that varies the opening position.
+
+Frames are **reversible**, and all six must show the same side to connect, but the side is
+**cosmetic**: both faces carry the same arrows.
+
+⚠️ A frame abuts **four** hexes and carries **three** arrows, so one abutted hex is never marked.
+Which one is unconfirmed — see `Material::FRAME_ARROW_PRIMARY`.
 
 ## Round structure
 

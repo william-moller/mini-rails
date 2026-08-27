@@ -16,16 +16,16 @@ import {
     TERRAIN_LABEL,
     TERRAIN_VALUE,
     TrackSlot,
+    FrameSpec,
     HexSpec,
     renderActionTile,
     renderDisc,
-    renderFrame,
     renderHexBoard,
     renderMarketBoard,
     renderProfitBoard,
     trackLength,
 } from './components';
-import { expandTiles, hexKey, rollTiles } from './hex';
+import { TILE_SLOTS, expandTiles, hexKey, rollTiles } from './hex';
 
 const TERRAINS = Object.keys(TERRAIN_VALUE) as Terrain[];
 
@@ -109,18 +109,21 @@ function main(): void {
             'in Material::TERRAIN_BY_SPACE and is still provisional.',
     );
     const specs = buildMap();
-    mapSection.appendChild(renderHexBoard(specs));
-    root.appendChild(mapSection);
+    // The frame ring. Colour order round the ring is random in a real game; here it is just the
+    // COMPANIES order so the preview looks the same on every reload.
+    const OUTSIDE = 5 / 3;
+    const frameSpecs: FrameSpec[] = COMPANIES.map((company, i) => {
+        const slot = i + 1;
+        return {
+            company,
+            slot,
+            hex: { q: TILE_SLOTS[slot].q * OUTSIDE, r: TILE_SLOTS[slot].r * OUTSIDE },
+            discs: i === 0 ? 1 : 0,
+        };
+    });
 
-    // ── Frames ────────────────────────────────────────────────────────────────────────────────
-    const frames = section(
-        'Company frames',
-        'A blocked company’s disc goes on its frame and moves that company’s stocks −1.',
-    );
-    const frameRow = row();
-    for (const c of COMPANIES) frameRow.appendChild(labelled(renderFrame(c), c));
-    frames.appendChild(frameRow);
-    root.appendChild(frames);
+    mapSection.appendChild(renderHexBoard(specs, frameSpecs));
+    root.appendChild(mapSection);
 
     // ── Market board ──────────────────────────────────────────────────────────────────────────
     const players = [

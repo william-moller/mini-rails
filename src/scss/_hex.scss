@@ -86,17 +86,51 @@
 }
 
 // Company frames sit outside the map edge; a blocked company's disc is placed here for -1.
+/*
+ * A Map Frame — placeholder.
+ *
+ * Positioned by the same axial arithmetic as a hex, from a VIRTUAL anchor outside the map, and
+ * rotated by --mr-frame-facing so the piece points inward at the tile it cups. The real piece is a
+ * chevron roughly two hexes wide; this draws it as a blunt wedge in the company colour.
+ */
 .mr-frame {
+  position: absolute;
   display: grid;
   place-items: center;
-  width: var(--mr-hex-w);
-  height: var(--mr-hex-h);
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  width: calc(var(--mr-hex-w) * 1.9);
+  height: calc(var(--mr-hex-h) * 0.55);
+
+  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * (var(--mr-q) + var(--mr-r) / 2));
+  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-r));
+
+  // Anchor on the piece's own centre, then face inward. Slot 1 is at the top of the ring, so its
+  // frame is already the right way up and the rotation is (slot - 1) * 60deg.
+  transform: translate(calc(var(--mr-hex-w) * -0.45), 0) rotate(var(--mr-frame-facing, 0deg));
+  transform-origin: center;
+
+  clip-path: polygon(0% 100%, 12% 0%, 88% 0%, 100% 100%, 50% 72%);
   background: repeating-linear-gradient(
     45deg,
     var(--mr-frame-color, #90a4ae) 0 6px,
     color-mix(in srgb, var(--mr-frame-color, #90a4ae) 70%, #000) 6px 12px
   );
+}
+
+/*
+ * A hex one of the frame arrows points at. The arrows are printed on the frame, but the hex is what
+ * the player needs to find, so the marker lives here: a ring in the company colour that survives a
+ * disc being placed on top.
+ */
+.mr-hex__start {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 3px dashed var(--mr-start-color, #90a4ae);
+  pointer-events: none;
+}
+
+@each $name, $color in tokens.$companies {
+  .mr-hex__start--#{$name} { --mr-start-color: #{$color}; }
 }
 
 @each $name, $color in tokens.$companies {

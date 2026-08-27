@@ -44,6 +44,19 @@ interface MrHex {
     is_start_for: string | null;
 }
 
+/** One of the 6 Map Frames, as built into the ring around the board this game. */
+interface MrFrame {
+    /** 1..6 — the outer tile slot this frame cups. Slot 0, The Big City, has no frame. */
+    slot: Num;
+    company: string;
+    /** Side A (1) or B (2). Cosmetic: both faces carry the same arrows. */
+    face: Num;
+    /** The four board hexes this frame's inner edge fronts onto, clockwise. */
+    abuts: [Num, Num][];
+    /** The hexes its three arrows mark, primary first. 3p seeds all three, 4-5p the primary. */
+    startHexes: [Num, Num][];
+}
+
 interface MrMarker {
     id: Num;
     player_id: Num;
@@ -79,6 +92,8 @@ interface minirailsmospinachGamedatas extends Gamedatas<minirailsmospinachPlayer
     tiles: MrTile[];
     /** slot index -> [q, r] of that slot's centre space. */
     tileSlots: Record<string, [Num, Num]>;
+    /** The 6 map frames, in ring order. Their arrows are where the starting discs went. */
+    frames: MrFrame[];
     hexes: MrHex[];
     markers: MrMarker[];
     discs: MrDiscs;
