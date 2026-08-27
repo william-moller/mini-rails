@@ -43,13 +43,12 @@ Not ranked.
   transcription slip is the other candidate. `TERRAIN_BY_SPACE` currently carries the scan for 1A and
   a placeholder for 1B, so nothing is wrong today — this only decides what 1B becomes. Needs one
   look at a physical tile, naming the face and one starting space.
-- **Confirm which hex a frame's primary arrow marks.** A frame abuts four perimeter hexes and
-  carries three arrows, so one abutted hex is never marked — but which, and which of the marked ones
-  is the primary, is a guess. `Material::FRAME_ARROW_PRIMARY` / `FRAME_ARROW_SECONDARY` hold it as
-  two small numbers keyed to `FRAME_PERIMETER_CW`; the current guess puts the primary on a tip hex
-  and the secondaries on the other tip and one flanker. Reading it off a physical frame changes
-  those numbers and nothing else. The 1:1 frame-to-tile geometry around them is verified, not
-  guessed.
+- **Confirm which of a frame's three arrows is the primary.** WHICH three hexes are marked is
+  settled — the last three of `Material::FRAME_PERIMETER_CW`, confirmed against a real 3-player
+  opening where all six companies agreed. What the primary is among them is not: it only shows at
+  **4 and 5 players**, where the primary alone is seeded, and a 3-player position seeds all three.
+  `FRAME_ARROW_PRIMARY` assumes position 1 because the primary arrow sits centrally on the piece.
+  Check it by dealing a 4-player table against a physical frame; it changes one constant.
 - **Copy the `bga-cards` / `bga-animations` typings** from `../ugly-christmas-sweater/` if the client
   needs them (`bga-framework.d.ts` came with the skeleton). Dev-only; they never deploy.
 - **Set project status** to "development started" in Control Panel → Manage Games.

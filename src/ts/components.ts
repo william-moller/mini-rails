@@ -159,10 +159,16 @@ export function renderHexBoard(specs: HexSpec[], frames: FrameSpec[] = []): HTML
     const minCol = Math.min(...cols);
     const minRow = Math.min(...rows);
 
-    const shift = (h: Hex): Hex => ({
-        q: h.q - Math.round(minCol) - Math.round(minRow) / 2,
-        r: h.r - minRow,
-    });
+    // Normalise so the top-left of the content sits at 0,0.
+    //
+    // NOT `q - round(minCol) - round(minRow)/2`. That rounding was harmless while every anchor was
+    // an integer hex, but the frame anchors are fractional (a slot vector scaled to distance 5), and
+    // rounding then leaves the whole board hundreds of pixels outside its own box. The CSS computes
+    // x from (q + r/2), so cancelling the shifted r/2 back out is exact for any input.
+    const shift = (h: Hex): Hex => {
+        const r = h.r - minRow;
+        return { q: h.q + h.r / 2 - minCol - r / 2, r };
+    };
 
     for (const spec of specs) {
         // Normalise so the top-left hex sits at 0,0 without negative offsets.
@@ -190,7 +196,7 @@ export function renderHexBoard(specs: HexSpec[], frames: FrameSpec[] = []): HTML
 export function renderFrame(spec: FrameSpec): HTMLElement {
     const { company, slot, discs } = spec;
     const f = el('div', `mr-frame mr-frame--${company}`);
-    f.setAttribute('style', `${hexStyleVars(spec.hex)} --mr-frame-facing: ${(slot - 1) * 60}deg;`);
+    f.setAttribute('style', `${hexStyleVars(spec.hex)};--mr-frame-facing:${(slot - 1) * 60}deg;`);
     f.dataset.company = company;
     f.dataset.slot = String(slot);
     f.setAttribute('aria-label', `${company} company frame${discs ? `, ${discs} blocked discs` : ''}`);

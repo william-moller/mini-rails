@@ -103,9 +103,13 @@
   left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * (var(--mr-q) + var(--mr-r) / 2));
   top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-r));
 
-  // Anchor on the piece's own centre, then face inward. Slot 1 is at the top of the ring, so its
-  // frame is already the right way up and the rotation is (slot - 1) * 60deg.
-  transform: translate(calc(var(--mr-hex-w) * -0.45), 0) rotate(var(--mr-frame-facing, 0deg));
+  // left/top put the element's top-left on the anchor hex's top-left, so pull it back by half its
+  // own size and push it out by half a hex to sit centred on the anchor. A flat translate would bias
+  // the ring, since the translate is not itself rotated. Slot 1 is at the top, so facing is
+  // (slot - 1) * 60deg.
+  transform:
+    translate(calc(var(--mr-hex-w) / 2 - 50%), calc(var(--mr-hex-h) / 2 - 50%))
+    rotate(var(--mr-frame-facing, 0deg));
   transform-origin: center;
 
   clip-path: polygon(0% 100%, 12% 0%, 88% 0%, 100% 100%, 50% 72%);

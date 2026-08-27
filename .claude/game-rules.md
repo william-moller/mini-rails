@@ -144,8 +144,14 @@ and that randomisation is the main thing that varies the opening position.
 Frames are **reversible**, and all six must show the same side to connect, but the side is
 **cosmetic**: both faces carry the same arrows.
 
-⚠️ A frame abuts **four** hexes and carries **three** arrows, so one abutted hex is never marked.
-Which one is unconfirmed — see `Material::FRAME_ARROW_PRIMARY`.
+A frame abuts **four** hexes and carries **three** arrows, so one abutted hex is never marked: the
+arrows take the **last three clockwise**, leaving the first. The marked arc is the tile's outward
+face shifted one step clockwise, which is why the piece is not symmetric. Confirmed against a real
+3-player opening — all six companies agreed on the same shift.
+
+⚠️ Which of the three is the **primary** is still open. It only shows at 4–5 players, where the
+primary alone is seeded; a 3-player position seeds all three and cannot distinguish them. See
+`Material::FRAME_ARROW_PRIMARY`.
 
 ## Round structure
 

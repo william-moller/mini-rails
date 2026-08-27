@@ -175,19 +175,24 @@ class Material
     public const FRAME_PERIMETER_CW = [4, 5, 0, 1];  // W, NW, NE, E
 
     /**
-     * ⚠️ PROVISIONAL. Which of those four hexes the three arrows mark, as positions within
-     * FRAME_PERIMETER_CW (0 = W, 1 = NW, 2 = NE, 3 = E on slot 1).
+     * Which of those four hexes the three arrows mark, as positions within FRAME_PERIMETER_CW
+     * (0 = W, 1 = NW, 2 = NE, 3 = E on slot 1).
      *
-     * Confirmed: a frame carries one primary and two secondary arrows, and 4 hexes with 3 arrows
-     * means ONE abutted hex is never marked. Rulebook Game Setup step 4 then reads: 3 players seed
-     * all three arrows, 4 and 5 players seed the primary only.
+     * The arrows mark positions 1, 2 and 3 — the LAST THREE clockwise. Position 0 is the one hex a
+     * frame abuts but never marks, so the marked arc is the tile's outward face shifted one step
+     * clockwise, which is why the physical piece is not symmetric.
      *
-     * NOT confirmed: WHICH of the four goes unmarked. The guess below puts the primary on a tip hex
-     * and the secondaries on the other tip and one flanker, because the primary arrow sits centrally
-     * on the piece. Reading it off a physical frame changes these three numbers and nothing else.
+     * CONFIRMED against a real table: Will marked up a 3-player opening position and all six
+     * companies agreed — each wanted its position-0 disc moved to position 3, and none of the other
+     * two moved. Six independent readings of one rule.
+     *
+     * ⚠️ Still a guess: WHICH of the three is the PRIMARY. It only shows at 4 and 5 players, where
+     * the primary alone is seeded, and the confirming position was 3-player — which seeds all three
+     * and so cannot distinguish them. Position 1 is assumed because the primary arrow sits centrally
+     * on the piece and 1 is a tip hex.
      */
     public const FRAME_ARROW_PRIMARY = 1;
-    public const FRAME_ARROW_SECONDARY = [2, 0];
+    public const FRAME_ARROW_SECONDARY = [2, 3];
 
     /**
      * The four board hexes a slot's frame abuts, clockwise.
