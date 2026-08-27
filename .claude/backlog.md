@@ -18,16 +18,31 @@ Not ranked.
   is currently drawn with CSS shapes (see `src/scss/_tokens.scss`). The intended swap is
   background-image sprites inside `_hex.scss` and `_disc.scss`; layout, sizing and class names are
   meant to survive it. Remove the `.mr-placeholder-banner` at the same time.
-- **Enter the real per-space terrain data.** `Material::TERRAIN_BY_SPACE` holds all 98 space codes
-  (7 tiles x 2 faces x 7 positions) but the terrain values are invented placeholders. Only
-  `'111'`/`'121'` — The Big City on tile 1's centre — are real. Overwrite the values in place;
-  nothing else needs to change. Ground truth for **1A, 2A and 3A** is already readable in the
-  publisher scans at [`../../_reference/minirails/img/wheel_*.png`](../../_reference/minirails/img/),
-  and the remaining four tiles plus every B side need the art request or the physical tiles.
+- **Decide whether a hex keeps its numeral once the art lands.** The physical tiles print **no
+  number at all** — value is a count of white (+1) or red (−1) dots. `renderHex()` currently writes a
+  signed numeral and a terrain name into `.mr-hex__value` / `.mr-hex__name`, which is clearer at BGA
+  zoom levels but is not what the tile shows. Either drop them for a dot cluster, or keep the numeral
+  as a deliberate digital-only aid and say so.
+- **Enter the remaining per-space terrain data.** `Material::TERRAIN_BY_SPACE` holds all 98 space
+  codes (7 tiles x 2 faces x 7 positions). **1A, 2A and 3A are real**, read off the publisher scans
+  at [`../../_reference/minirails/img/wheel_*.png`](../../_reference/minirails/img/) by counting the
+  dots. Still invented: **tiles 4–7, both sides, and the B side of 1, 2 and 3** — those need the art
+  request or the physical tiles. Overwrite the values in place; nothing else needs to change.
 - **Confirm tile 1's B side still carries The Big City.** `Material::BIG_CITY_TILE` assumes it does,
   on the grounds that a 50/50 flip which could delete The Big City from the game would be absurd.
   Side A is confirmed from `wheel_0.png`; side B is not. If wrong, only `TERRAIN_BY_SPACE['121']`
   changes.
+- **Resolve a second reading of tile 1's ring that does not match `wheel_0.png`.** Will read the six
+  spaces around The Big City as the cycle **+1 −3 +2 −1 +3 −2** (no fixed starting space, and the
+  face was not noted; possibly the same on both faces). `wheel_0.png` gives 1A as the cycle
+  **+2 −1 −3 −2 +1 +3** (Farmland, Forest, Mountains, Lake, Plains, Suburbs clockwise from NE). Same
+  six values, but Will's is **neither a rotation nor a reflection** of the scan's — checked all 12 —
+  so the two cannot be the same face read from a different corner. Anchored at the shared `+1`
+  (Plains, our W) they agree on four of six and exchange only **Suburbs +3 ↔ Mountains −3**. Most
+  likely it is **side B**, which would also settle the question above; a two-space
+  transcription slip is the other candidate. `TERRAIN_BY_SPACE` currently carries the scan for 1A and
+  a placeholder for 1B, so nothing is wrong today — this only decides what 1B becomes. Needs one
+  look at a physical tile, naming the face and one starting space.
 - **Confirm the starting-hex layout.** `setupMap()` seeds each company on the spaces furthest from
   the map centre on one randomly-assigned outer tile. The rulebook shows the real layout only as
   diagrams, and the 3-player layout differs from the 4/5-player one.

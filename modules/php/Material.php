@@ -143,38 +143,53 @@ class Material
     ];
 
     /**
-     * ⚠️ PROVISIONAL SPACE DATA — invented, not read off the real tiles.
+     * ⚠️ PARTLY PROVISIONAL SPACE DATA. Sides 1A, 2A and 3A are real; everything else is invented.
      *
      * The STRUCTURE around this table is settled: 7 tiles x 2 faces x 7 positions = 98 space codes,
-     * of which 49 are in play once the flips are decided. The TERRAIN VALUES below are placeholders
-     * so the game is playable before the real tile data is entered.
+     * of which 49 are in play once the flips are decided.
      *
      * Space code = tile * 100 + face * 10 + position, e.g. '314' is tile 3, side A, position 4;
-     * '721' is tile 7, side B, position 1. Listed centre-first, then the ring 2..7 clockwise.
+     * '721' is tile 7, side B, position 1. Listed centre-first, then the ring 2..7 clockwise from
+     * NE — the tile's OWN numbering, independent of how the tile is later rotated on the board.
      *
-     * When the real data arrives, overwrite the values in place — nothing else needs to change.
-     * Partial ground truth already exists for 1A, 2A and 3A in the publisher scans at
-     * ../../_reference/minirails/img/wheel_*.png; read those properly rather than trusting these.
+     * CONFIRMED (marked ✅ below): 1A, 2A and 3A, read off the publisher scans at
+     * ../../_reference/minirails/img/wheel_0/1/2.png, which are labelled with those tile ids.
+     * Terrain value is never printed as a numeral on a tile — it is a count of dots, white for
+     * profit and red for deficit — so the dots were counted and mapped back through the rulebook's
+     * value table (see .claude/game-rules.md).
      *
-     * The one non-placeholder entry is The Big City, which must appear exactly once on the board —
-     * see BIG_CITY_TILE.
+     * PLACEHOLDER: tiles 4–7 both sides, and the B side of 1, 2 and 3. Those need the art request or
+     * the physical tiles. Overwrite the values in place — nothing else needs to change.
+     *
+     * The Big City must appear exactly once on the board — see BIG_CITY_TILE.
      */
     public const TERRAIN_BY_SPACE = [
         // Tile 1 — The Big City tile. Centre is big-city on both faces.
-        '111' => 'big-city',  '112' => 'suburbs',   '113' => 'farmland',  '114' => 'plains',
-        '115' => 'forest',    '116' => 'lake',      '117' => 'mountains',
+        //
+        // ✅ SIDE A CONFIRMED, read off wheel_0.png (labelled 1A). The ring carries each of the six
+        // terrains exactly once. Rotation 0 is defined as the scan's own orientation.
+        '111' => 'big-city',  '112' => 'farmland',  '113' => 'forest',    '114' => 'mountains',
+        '115' => 'lake',      '116' => 'plains',    '117' => 'suburbs',
+        // ⚠️ Side B ring is still a placeholder — see backlog.
         '121' => 'big-city',  '122' => 'farmland',  '123' => 'plains',    '124' => 'suburbs',
         '125' => 'mountains', '126' => 'forest',    '127' => 'lake',
 
         // Tile 2
-        '211' => 'mountains', '212' => 'farmland',  '213' => 'suburbs',   '214' => 'plains',
-        '215' => 'plains',    '216' => 'suburbs',   '217' => 'farmland',
+        //
+        // ✅ SIDE A CONFIRMED, read off wheel_1.png (labelled 2A). Mountains in the centre; the ring
+        // is +3/+1/+2 repeated twice, so this tile has no forest and no lake.
+        '211' => 'mountains', '212' => 'suburbs',   '213' => 'plains',    '214' => 'farmland',
+        '215' => 'suburbs',   '216' => 'plains',    '217' => 'farmland',
+        // ⚠️ Side B placeholder.
         '221' => 'lake',      '222' => 'plains',    '223' => 'farmland',  '224' => 'forest',
         '225' => 'suburbs',   '226' => 'plains',    '227' => 'forest',
 
         // Tile 3
+        //
+        // ✅ SIDE A CONFIRMED, read off wheel_2.png (labelled 3A). Suburbs in the centre.
         '311' => 'suburbs',   '312' => 'farmland',  '313' => 'farmland',  '314' => 'forest',
-        '315' => 'farmland',  '316' => 'lake',      '317' => 'forest',
+        '315' => 'lake',      '316' => 'forest',    '317' => 'farmland',
+        // ⚠️ Side B placeholder.
         '321' => 'forest',    '322' => 'suburbs',   '323' => 'plains',    '324' => 'mountains',
         '325' => 'farmland',  '326' => 'plains',    '327' => 'lake',
 

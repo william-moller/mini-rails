@@ -73,11 +73,30 @@ Spaces are identified by a 3-digit **space code**, `tile * 100 + face * 10 + pos
 ```
 
 Rotation shifts the **ring only** — a tile's centre space never moves, which is why The Big City
-stays put however tile 1 is rotated. Position numbers are printed on the tile and never change;
-rotation changes only where a position *lands* on the board.
+stays put however tile 1 is rotated. The position numbers are **ours, not the publisher's**: a tile
+carries only a printed id (`1A`, `2A`, …), so we number the ring 2–7 clockwise from NE and treat the
+scan's orientation as rotation 0. Rotation changes only where a position *lands* on the board.
 
-⚠️ **Which terrain sits on which space is still provisional** — see `Material::TERRAIN_BY_SPACE`.
-The structure above is not.
+### Map tiles — which terrain sits where
+
+A hex **never prints its value as a numeral**. It shows a cluster of **dots**: **white = +1 each,
+red = −1 each**, so The Big City is 5 white dots and Mountains is 3 red. Reading a tile means
+counting dots; the final art must carry the dots, not numbers.
+
+Sides **1A**, **2A** and **3A** are confirmed from the publisher scans in
+[`../../_reference/minirails/img/`](../../_reference/minirails/img/) (`wheel_0/1/2.png`), centre
+first then the ring clockwise from NE:
+
+| Tile | Centre | NE | E | SE | SW | W | NW |
+|------|--------|----|---|----|----|---|----|
+| **1A** | Big City +5 | Farmland +2 | Forest −1 | Mountains −3 | Lake −2 | Plains +1 | Suburbs +3 |
+| **2A** | Mountains −3 | Suburbs +3 | Plains +1 | Farmland +2 | Suburbs +3 | Plains +1 | Farmland +2 |
+| **3A** | Suburbs +3 | Farmland +2 | Farmland +2 | Forest −1 | Lake −2 | Forest −1 | Farmland +2 |
+
+1A's ring carries each of the six terrains **exactly once**. 2A is `+3 +1 +2` twice round the ring,
+with no negative space except its centre.
+
+⚠️ **Tiles 4–7 and every B side are still placeholders** — see `Material::TERRAIN_BY_SPACE`.
 
 ## Setup
 
@@ -139,8 +158,9 @@ value:
 | Lake | −2 |
 | Mountains | −3 |
 
-White spots on a hex are profit (+1 each) and red spots are deficit (−1 each); the values above are
-the net printed result.
+A hex **never shows its number** — only dots: white dots are profit (+1 each), red dots are deficit
+(−1 each). The values above are the net dot count. Every hex on the three scanned tiles carries dots
+of a single colour, so "net" has never yet meant a subtraction.
 
 **Blocked company:** if the disc has **no legal hex** anywhere on the map, place it on that company's
 **frame** and move all stocks of that colour **−1**. You may **not** use the frame while any legal hex
