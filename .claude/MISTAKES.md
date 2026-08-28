@@ -20,6 +20,23 @@ nothing.
 
 ---
 
+## Drew the map frames as invented shapes instead of measuring what the board is
+
+- **What happened** — The six frames rendered as small striped wedges floating outside the map:
+  wrong shape, too small, not touching the tiles. Will sent a screenshot, then a photo of the real
+  board showing what it actually is — map tiles and frames together make ONE large hexagon.
+- **Root cause** — I invented a placeholder shape (a blunt chevron on a virtual hex anchor pushed out
+  along the slot vector) rather than asking what the piece is. The answer was already in the repo:
+  both setup diagrams on the rulebook page scan in `../_reference/minirails/img/` show the whole
+  board. Once measured off that scan, the geometry is fully determined — the frames
+  are the wedge between the map outline and the board hexagon, nothing about them is a free choice.
+- **Consequence** — A deploy and a look at a real table spent on a shape that could never be right,
+  and "placeholder" used as cover for not knowing what the component was.
+- **Rule** — "Placeholder art" licenses a placeholder SURFACE — flat colour instead of a printed
+  image. It never licenses a placeholder SHAPE or POSITION: those are geometry, they are what the
+  player reads, and they come from the physical component. Before drawing a piece I have not seen,
+  go and look — the reference scans, the rulebook PDF, or ask Will for a photo.
+
 ## Shipped a visual feature without ever looking at it
 
 - **What happened** — Added the six map frames, built clean, deployed, and told Will he "should see

@@ -85,41 +85,6 @@
   outline-offset: -4px;
 }
 
-// Company frames sit outside the map edge; a blocked company's disc is placed here for -1.
-/*
- * A Map Frame — placeholder.
- *
- * Positioned by the same axial arithmetic as a hex, from a VIRTUAL anchor outside the map, and
- * rotated by --mr-frame-facing so the piece points inward at the tile it cups. The real piece is a
- * chevron roughly two hexes wide; this draws it as a blunt wedge in the company colour.
- */
-.mr-frame {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: calc(var(--mr-hex-w) * 1.9);
-  height: calc(var(--mr-hex-h) * 0.55);
-
-  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * (var(--mr-q) + var(--mr-r) / 2));
-  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-r));
-
-  // left/top put the element's top-left on the anchor hex's top-left, so pull it back by half its
-  // own size and push it out by half a hex to sit centred on the anchor. A flat translate would bias
-  // the ring, since the translate is not itself rotated. Slot 1 is at the top, so facing is
-  // (slot - 1) * 60deg.
-  transform:
-    translate(calc(var(--mr-hex-w) / 2 - 50%), calc(var(--mr-hex-h) / 2 - 50%))
-    rotate(var(--mr-frame-facing, 0deg));
-  transform-origin: center;
-
-  clip-path: polygon(0% 100%, 12% 0%, 88% 0%, 100% 100%, 50% 72%);
-  background: repeating-linear-gradient(
-    45deg,
-    var(--mr-frame-color, #90a4ae) 0 6px,
-    color-mix(in srgb, var(--mr-frame-color, #90a4ae) 70%, #000) 6px 12px
-  );
-}
-
 /*
  * A hex one of the frame arrows points at. The arrows are printed on the frame, but the hex is what
  * the player needs to find, so the marker lives here: a ring in the company colour that survives a
@@ -135,8 +100,4 @@
 
 @each $name, $color in tokens.$companies {
   .mr-hex__start--#{$name} { --mr-start-color: #{$color}; }
-}
-
-@each $name, $color in tokens.$companies {
-  .mr-frame--#{$name} { --mr-frame-color: #{$color}; }
 }

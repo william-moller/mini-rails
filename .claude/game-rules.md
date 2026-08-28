@@ -129,6 +129,22 @@ Six chevron pieces, one per company colour, clip together into a ring around the
 **cups exactly one outer tile**, so frame ↔ tile slot is 1:1 and the ring covers all 24 perimeter
 hexes, four per frame, with no overlap — verified against `Material::TILE_SLOTS`.
 
+**The frames are not trim around the map: map tiles plus frames are ONE large hexagon.** Both setup
+diagrams on the rulebook's Quick Reference page show it, and so does a photo of a built table. That
+fixes the shape of a piece completely, with nothing left to invent:
+
+- The seven tiles reach **4.163 hex widths** from the centre at six points — the outward corner of
+  each outer tile — and dip to **3.055** at the six notches between adjacent outer tiles.
+- The board hexagon puts a **corner on each of those six far points**. Measured off the setup
+  diagram it sits at about **5.1**, giving a border between half and one hex wide; below 4.484 it
+  would slice a corner off a tile.
+- The **joints are the notches**. Cutting there is what leaves each piece cupping one tile, and it
+  is why a piece is a chevron: its point is the board corner, its inner edge is the map's own
+  outline, and it thickens towards both ends.
+
+The client draws exactly this — see `frameOutline()` in `src/ts/hex.ts`, derived from `TILE_SLOTS`
+rather than listed out.
+
 A frame does two jobs:
 
 - **It marks that company's starting hexes.** Three arrows point inward: one **primary** and two

@@ -64,21 +64,13 @@ export function renderBoard(
 
     // ── Map frames ────────────────────────────────────────────────────────────────────────────
     // The ring around the board, one frame per company, each cupping the outer tile in its slot.
-    //
-    // A slot's centre sits 3 hexes from the middle and the board reaches 4, so scaling the slot
-    // vector to 5 puts the frame just outside the map on the same radial line — no separate table
-    // of frame positions to keep in step with TILE_SLOTS.
-    const OUTSIDE = 5 / 3;
-    const frameSpecs: FrameSpec[] = gamedatas.frames.map((fr) => {
-        const slot = n(fr.slot);
-        const [cq, cr] = gamedatas.tileSlots[String(slot)];
-        return {
-            company: fr.company as Company,
-            slot,
-            hex: { q: n(cq) * OUTSIDE, r: n(cr) * OUTSIDE },
-            discs: gamedatas.discs.frame.filter((d) => d.company === fr.company).length,
-        };
-    });
+    // The slot is the whole of it: the piece's shape and place both fall out of the map geometry
+    // (frameOutline() in hex.ts), so there is no table of frame positions to keep in step.
+    const frameSpecs: FrameSpec[] = gamedatas.frames.map((fr) => ({
+        company: fr.company as Company,
+        slot: n(fr.slot),
+        discs: gamedatas.discs.frame.filter((d) => d.company === fr.company).length,
+    }));
 
     const board = renderHexBoard(specs, frameSpecs);
     root.appendChild(board);

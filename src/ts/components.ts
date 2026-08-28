@@ -8,7 +8,17 @@
  * for the intended swap when art arrives.
  */
 
-import { Hex, hexKey, hexStyleVars } from './hex';
+import {
+    Hex,
+    Point,
+    frameHome,
+    frameOutline,
+    frameRingBounds,
+    hexKey,
+    hexPoint,
+    hexStyleVars,
+    pointCell,
+} from './hex';
 
 export type Company = 'red' | 'white' | 'tan' | 'blue' | 'yellow' | 'gray';
 export type Terrain = 'big-city' | 'suburbs' | 'farmland' | 'plains' | 'forest' | 'lake' | 'mountains';
@@ -96,14 +106,13 @@ export interface HexSpec {
 /**
  * One of the 6 Map Frames, drawn in the ring around the board.
  *
- * `hex` is a VIRTUAL axial anchor outside the map, not a board space — the frame is a physical
- * piece cupping one outer tile, so it is positioned by the same axial-to-pixel arithmetic as a hex
- * and then rotated to face inward.
+ * A frame is not on a hex: it is a piece of the board itself, the wedge between the map's outline
+ * and the outer hexagon. All of that geometry follows from the slot, so the slot is all this carries
+ * — see frameOutline() in src/ts/hex.ts.
  */
 export interface FrameSpec {
     company: Company;
-    hex: Hex;
-    /** 1..6, the outer tile slot this frame cups. Drives which way the piece faces. */
+    /** 1..6, the outer tile slot this frame cups. Fixes both the piece's shape and where it sits. */
     slot: number;
     /** How many of this company's discs are parked here, blocked off the map. */
     discs: number;
@@ -144,63 +153,111 @@ export function renderHex(spec: HexSpec): HTMLElement {
 }
 
 /**
- * Renders the board and sizes its container from the axial extent, so the caller never computes
+ * Renders the board and sizes its container from the map extent, so the caller never computes
  * pixels. Keep the arithmetic here consistent with the left/top rules in _hex.scss.
+ *
+ * The frame ring is not an overlay on the map — map plus frames is one hexagonal board — so when
+ * there are frames it is the RING that fixes the box, and the hexes are laid out inside it.
  */
 export function renderHexBoard(specs: HexSpec[], frames: FrameSpec[] = []): HTMLElement {
     const board = el('div', 'mr-hex-board');
     if (!specs.length) return board;
 
-    // The frame anchors sit OUTSIDE the map, so they have to be normalised and measured alongside
-    // the hexes — otherwise the ring is clipped by a board box sized to the hexes alone.
-    const anchors = [...specs.map((s) => s.hex), ...frames.map((f) => f.hex)];
-    const cols = anchors.map((h) => h.q + h.r / 2);
-    const rows = anchors.map((h) => h.r);
-    const minCol = Math.min(...cols);
-    const minRow = Math.min(...rows);
+    // Everything is measured as (column, row): column is q + r/2, row is r. A hex's left/top and the
+    // ring's are both plain multiples of those, so one normalisation serves both.
+    const ring = frames.length ? frameRingBounds() : null;
+    const cells = specs.map((s) => pointCell(hexPoint(s.hex)));
+    if (ring) cells.push(pointCell(ring.min), pointCell(ring.max));
+    const minCol = Math.min(...cells.map((c) => c.col));
+    const minRow = Math.min(...cells.map((c) => c.row));
+    const cols = Math.max(...cells.map((c) => c.col)) - minCol;
+    const rows = Math.max(...cells.map((c) => c.row)) - minRow;
 
     // Normalise so the top-left of the content sits at 0,0.
     //
     // NOT `q - round(minCol) - round(minRow)/2`. That rounding was harmless while every anchor was
-    // an integer hex, but the frame anchors are fractional (a slot vector scaled to distance 5), and
-    // rounding then leaves the whole board hundreds of pixels outside its own box. The CSS computes
-    // x from (q + r/2), so cancelling the shifted r/2 back out is exact for any input.
+    // an integer hex, but the ring bounds are fractional, and rounding then leaves the whole board
+    // hundreds of pixels outside its own box. The CSS computes x from (q + r/2), so cancelling the
+    // shifted r/2 back out is exact for any input.
     const shift = (h: Hex): Hex => {
         const r = h.r - minRow;
         return { q: h.q + h.r / 2 - minCol - r / 2, r };
     };
 
+    // Ring first: the frames are UNDER the map, so the seam along the map's outline reads as tiles
+    // sitting in the frame rather than the frame lapping over them.
+    if (ring) board.appendChild(renderFrameRing(frames, ring, minCol, minRow));
     for (const spec of specs) {
-        // Normalise so the top-left hex sits at 0,0 without negative offsets.
         board.appendChild(renderHex({ ...spec, hex: shift(spec.hex) }));
     }
-    for (const frame of frames) {
-        board.appendChild(renderFrame({ ...frame, hex: shift(frame.hex) }));
-    }
 
-    const width = Math.max(...cols) - minCol + 1;
-    const height = Math.max(...rows) - minRow + 1;
-    board.style.width = `calc((var(--mr-hex-w) + var(--mr-hex-gap)) * ${width + 0.5})`;
-    board.style.height = `calc((var(--mr-hex-h) + var(--mr-hex-gap)) * (0.75 * ${height} + 0.25))`;
+    // left/top place a hex's BOX; the extents above are hex CENTRES, half a hex further in. Hence
+    // the extra whole hex of size — half a hex of margin at each end.
+    board.style.width = `calc((var(--mr-hex-w) + var(--mr-hex-gap)) * ${cols} + var(--mr-hex-w))`;
+    board.style.height = `calc((var(--mr-hex-h) + var(--mr-hex-gap)) * ${0.75 * rows} + var(--mr-hex-h))`;
     return board;
 }
 
 /**
- * One Map Frame in the ring: the company's home edge, and where its disc goes when the company is
+ * The ring of six Map Frames: the company home edges, and where a company's disc goes when it is
  * blocked off the map entirely (for -1).
  *
- * Placeholder art. The real piece is a chevron whose inner edge cups the outer tile and whose three
- * inward arrows mark the starting hexes; those hexes carry their own marker, so this draws the
- * colour, the facing and the parked discs only.
+ * One positioned box holds all six, and each frame clips a copy of that box down to its own
+ * polygon. The box is placed and sized in hex units, so it tracks --mr-hex-w and the gap like
+ * everything else; the polygons are then pure percentages of it, which is what keeps the ring locked
+ * to the map at any board scale.
  */
-export function renderFrame(spec: FrameSpec): HTMLElement {
+function renderFrameRing(
+    frames: FrameSpec[],
+    bounds: { min: Point; max: Point },
+    minCol: number,
+    minRow: number,
+): HTMLElement {
+    const lo = pointCell(bounds.min);
+    const hi = pointCell(bounds.max);
+    const pct = (p: Point): string => {
+        const c = pointCell(p);
+        const x = (100 * (c.col - lo.col)) / (hi.col - lo.col);
+        const y = (100 * (c.row - lo.row)) / (hi.row - lo.row);
+        return `${x.toFixed(3)}% ${y.toFixed(3)}%`;
+    };
+
+    const ring = el('div', 'mr-frame-ring');
+    ring.setAttribute(
+        'style',
+        `--mr-ring-col:${lo.col - minCol};--mr-ring-row:${lo.row - minRow};` +
+            `--mr-ring-cols:${hi.col - lo.col};--mr-ring-rows:${hi.row - lo.row};`,
+    );
+    for (const frame of frames) ring.appendChild(renderFrame(frame, pct));
+    return ring;
+}
+
+/**
+ * One Map Frame — placeholder.
+ *
+ * The SHAPE is real: frameOutline() cuts the piece from the board hexagon along the map's own
+ * outline, so it cups its tile exactly and butts against its neighbours. What is still a placeholder
+ * is the surface — flat scenery tinted towards the company, with a ringed home spot on the frame's
+ * corner in place of the printed arrows. The starting hexes those arrows point at carry their own
+ * marker, so nothing is lost by leaving them off the piece.
+ */
+export function renderFrame(spec: FrameSpec, pct: (p: Point) => string): HTMLElement {
     const { company, slot, discs } = spec;
     const f = el('div', `mr-frame mr-frame--${company}`);
-    f.setAttribute('style', `${hexStyleVars(spec.hex)};--mr-frame-facing:${(slot - 1) * 60}deg;`);
     f.dataset.company = company;
     f.dataset.slot = String(slot);
     f.setAttribute('aria-label', `${company} company frame${discs ? `, ${discs} blocked discs` : ''}`);
-    if (discs) f.appendChild(renderDisc(company, 'on-hex'));
+
+    const piece = el('div', 'mr-frame__piece');
+    piece.style.clipPath = `polygon(${frameOutline(slot).map(pct).join(',')})`;
+    f.appendChild(piece);
+
+    const home = el('div', 'mr-frame__home');
+    const [left, top] = pct(frameHome(slot)).split(' ');
+    home.style.left = left;
+    home.style.top = top;
+    if (discs) home.appendChild(renderDisc(company, 'on-hex'));
+    f.appendChild(home);
     return f;
 }
 

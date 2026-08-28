@@ -1,0 +1,85 @@
+@use 'tokens';
+
+/*
+ * Map Frames — the rest of the board.
+ *
+ * The six frames are not trim around the map: map tiles plus frames make one large hexagon, and a
+ * frame is the wedge of board between the map's outline and that hexagon's edge. So there is no
+ * positioning to do per piece. src/ts/hex.ts cuts each polygon, the client hands it over as a
+ * clip-path in percentages, and everything here does is place ONE box over the whole ring, in the
+ * same hex units the map is laid out in.
+ *
+ * That box is offset half a hex from the board's origin because a hex's left/top place its BOX
+ * while the ring's coordinates are hex CENTRES.
+ */
+
+.mr-frame-ring {
+  position: absolute;
+  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * var(--mr-ring-col) + var(--mr-hex-w) / 2);
+  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-ring-row) + var(--mr-hex-h) / 2);
+  width: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * var(--mr-ring-cols));
+  height: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-ring-rows));
+  // The ring box spans the whole board, so it must not swallow clicks meant for the map. Only the
+  // clipped piece and the home spot take pointer events; both bubble their click up to .mr-frame.
+  pointer-events: none;
+}
+
+.mr-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * The piece itself: a full-size copy of the ring box, clipped down to this frame's polygon. Drawn
+ * BEHIND the map hexes so the seam along the map's outline reads as the tiles sitting in the frame
+ * rather than the frame overlapping them.
+ */
+.mr-frame__piece {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  // Placeholder scenery: board green, pulled towards the company so six pieces of one ring stay
+  // tellable apart at a glance. Real art replaces this with the printed frame image.
+  background: color-mix(in srgb, var(--mr-frame-color, #90a4ae) 30%, #6f8f5c);
+  border: 0;
+}
+
+/*
+ * The company's home spot, out on the frame's corner: where a disc parks when the company has no
+ * legal hex left anywhere and is built for -1. It stands in for the printed arrows, which mark
+ * starting hexes — those hexes carry their own ring (.mr-hex__start), so the arrows are not needed
+ * here.
+ */
+.mr-frame__home {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: calc(var(--mr-hex-w) * 0.6);
+  height: calc(var(--mr-hex-w) * 0.6);
+  border-radius: 50%;
+  border: 3px dashed var(--mr-frame-color, #90a4ae);
+  background: rgb(255 255 255 / 20%);
+  pointer-events: auto;
+}
+
+// A company with nowhere legal to build: the whole frame is the click target.
+.mr-frame.is-selectable {
+  cursor: pointer;
+
+  .mr-frame__piece {
+    background: color-mix(in srgb, var(--mr-focus) 45%, var(--mr-frame-color, #90a4ae));
+  }
+
+  .mr-frame__home {
+    border-style: solid;
+    border-color: var(--mr-focus);
+    background: rgb(255 255 255 / 45%);
+  }
+}
+
+@each $name, $color in tokens.$companies {
+  .mr-frame--#{$name} { --mr-frame-color: #{$color}; }
+}

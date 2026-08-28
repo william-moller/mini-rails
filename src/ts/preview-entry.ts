@@ -25,7 +25,7 @@ import {
     renderProfitBoard,
     trackLength,
 } from './components';
-import { TILE_SLOTS, expandTiles, hexKey, rollTiles } from './hex';
+import { expandTiles, hexKey, rollTiles } from './hex';
 
 const TERRAINS = Object.keys(TERRAIN_VALUE) as Terrain[];
 
@@ -111,16 +111,11 @@ function main(): void {
     const specs = buildMap();
     // The frame ring. Colour order round the ring is random in a real game; here it is just the
     // COMPANIES order so the preview looks the same on every reload.
-    const OUTSIDE = 5 / 3;
-    const frameSpecs: FrameSpec[] = COMPANIES.map((company, i) => {
-        const slot = i + 1;
-        return {
-            company,
-            slot,
-            hex: { q: TILE_SLOTS[slot].q * OUTSIDE, r: TILE_SLOTS[slot].r * OUTSIDE },
-            discs: i === 0 ? 1 : 0,
-        };
-    });
+    const frameSpecs: FrameSpec[] = COMPANIES.map((company, i) => ({
+        company,
+        slot: i + 1,
+        discs: i === 0 ? 1 : 0,
+    }));
 
     mapSection.appendChild(renderHexBoard(specs, frameSpecs));
     root.appendChild(mapSection);

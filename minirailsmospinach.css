@@ -177,27 +177,6 @@
 }
 
 /*
- * A Map Frame — placeholder.
- *
- * Positioned by the same axial arithmetic as a hex, from a VIRTUAL anchor outside the map, and
- * rotated by --mr-frame-facing so the piece points inward at the tile it cups. The real piece is a
- * chevron roughly two hexes wide; this draws it as a blunt wedge in the company colour.
- */
-.mr-frame {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: calc(var(--mr-hex-w) * 1.9);
-  height: calc(var(--mr-hex-h) * 0.55);
-  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * (var(--mr-q) + var(--mr-r) / 2));
-  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-r));
-  transform: translate(calc(var(--mr-hex-w) / 2 - 50%), calc(var(--mr-hex-h) / 2 - 50%)) rotate(var(--mr-frame-facing, 0deg));
-  transform-origin: center;
-  clip-path: polygon(0% 100%, 12% 0%, 88% 0%, 100% 100%, 50% 72%);
-  background: repeating-linear-gradient(45deg, var(--mr-frame-color, #90a4ae) 0 6px, color-mix(in srgb, var(--mr-frame-color, #90a4ae) 70%, #000) 6px 12px);
-}
-
-/*
  * A hex one of the frame arrows points at. The arrows are printed on the frame, but the hex is what
  * the player needs to find, so the marker lives here: a ring in the company colour that survives a
  * disc being placed on top.
@@ -232,6 +211,101 @@
 
 .mr-hex__start--gray {
   --mr-start-color: #78909c;
+}
+
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Mini Rails implementation : © Will Moller <will.moller@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/*
+ * Entry point for `npm run build:scss`, which compiles this to minirailsmospinach.css at the repo
+ * root. That generated file is what deploys; never edit it directly.
+ *
+ * ⚠️ EVERY COMPONENT HERE IS A CSS PLACEHOLDER. There are no art files yet, so hexes, discs, markers
+ * and boards are drawn with shapes, gradients and clip-paths. This is deliberate: it makes the game
+ * fully playable and lets the state machine be built and tested before any art exists, and unlike
+ * borrowed art it cannot accidentally ship.
+ *
+ * When art arrives, the intended swap is background-image sprites inside _hex.scss and _disc.scss.
+ * Layout, sizing and class names are meant to survive that swap unchanged.
+ *
+ * Preview the whole component set without a BGA table: scripts/component-preview.html
+ */
+/*
+ * Map Frames — the rest of the board.
+ *
+ * The six frames are not trim around the map: map tiles plus frames make one large hexagon, and a
+ * frame is the wedge of board between the map's outline and that hexagon's edge. So there is no
+ * positioning to do per piece. src/ts/hex.ts cuts each polygon, the client hands it over as a
+ * clip-path in percentages, and everything here does is place ONE box over the whole ring, in the
+ * same hex units the map is laid out in.
+ *
+ * That box is offset half a hex from the board's origin because a hex's left/top place its BOX
+ * while the ring's coordinates are hex CENTRES.
+ */
+.mr-frame-ring {
+  position: absolute;
+  left: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * var(--mr-ring-col) + var(--mr-hex-w) / 2);
+  top: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-ring-row) + var(--mr-hex-h) / 2);
+  width: calc((var(--mr-hex-w) + var(--mr-hex-gap)) * var(--mr-ring-cols));
+  height: calc((var(--mr-hex-h) + var(--mr-hex-gap)) * 0.75 * var(--mr-ring-rows));
+  pointer-events: none;
+}
+
+.mr-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * The piece itself: a full-size copy of the ring box, clipped down to this frame's polygon. Drawn
+ * BEHIND the map hexes so the seam along the map's outline reads as the tiles sitting in the frame
+ * rather than the frame overlapping them.
+ */
+.mr-frame__piece {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--mr-frame-color, #90a4ae) 30%, #6f8f5c);
+  border: 0;
+}
+
+/*
+ * The company's home spot, out on the frame's corner: where a disc parks when the company has no
+ * legal hex left anywhere and is built for -1. It stands in for the printed arrows, which mark
+ * starting hexes — those hexes carry their own ring (.mr-hex__start), so the arrows are not needed
+ * here.
+ */
+.mr-frame__home {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: calc(var(--mr-hex-w) * 0.6);
+  height: calc(var(--mr-hex-w) * 0.6);
+  border-radius: 50%;
+  border: 3px dashed var(--mr-frame-color, #90a4ae);
+  background: rgba(255, 255, 255, 0.2);
+  pointer-events: auto;
+}
+
+.mr-frame.is-selectable {
+  cursor: pointer;
+}
+.mr-frame.is-selectable .mr-frame__piece {
+  background: color-mix(in srgb, var(--mr-focus) 45%, var(--mr-frame-color, #90a4ae));
+}
+.mr-frame.is-selectable .mr-frame__home {
+  border-style: solid;
+  border-color: var(--mr-focus);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .mr-frame--red {
