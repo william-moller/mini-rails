@@ -71,6 +71,14 @@
   border-color: var(--mr-focus);
 }
 
+// The disc taken this turn, held while the player picks what to do with it. Has to read as a
+// stronger state than is-selectable, because during that step the other cells are still live.
+.mr-cell.is-selected {
+  border-style: solid;
+  border-color: var(--mr-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mr-focus) 45%, transparent);
+}
+
 // The turn-order reading of the order track: leftmost acts next.
 .mr-track--order .mr-cell { border-radius: 50% 50% 4px 4px; }
 

@@ -80,6 +80,20 @@
   }
 }
 
+// Chosen as this turn's build target, waiting on Confirm.
+.mr-frame.is-selected {
+  .mr-frame__piece {
+    background: color-mix(in srgb, var(--mr-focus) 65%, var(--mr-frame-color, #90a4ae));
+  }
+
+  .mr-frame__home {
+    border-style: solid;
+    border-color: var(--mr-focus);
+    background: rgb(255 255 255 / 60%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mr-focus) 55%, transparent);
+  }
+}
+
 @each $name, $color in tokens.$companies {
   .mr-frame--#{$name} { --mr-frame-color: #{$color}; }
 }

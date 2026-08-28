@@ -308,6 +308,16 @@
   background: rgba(255, 255, 255, 0.45);
 }
 
+.mr-frame.is-selected .mr-frame__piece {
+  background: color-mix(in srgb, var(--mr-focus) 65%, var(--mr-frame-color, #90a4ae));
+}
+.mr-frame.is-selected .mr-frame__home {
+  border-style: solid;
+  border-color: var(--mr-focus);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mr-focus) 55%, transparent);
+}
+
 .mr-frame--red {
   --mr-frame-color: #c62828;
 }
@@ -544,6 +554,12 @@
   cursor: pointer;
   border-style: solid;
   border-color: var(--mr-focus);
+}
+
+.mr-cell.is-selected {
+  border-style: solid;
+  border-color: var(--mr-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mr-focus) 45%, transparent);
 }
 
 .mr-track--order .mr-cell {

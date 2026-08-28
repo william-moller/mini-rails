@@ -1,21 +1,31 @@
 import { Game } from "../Game";
 
+/** What the player has chosen to do with the held disc, waiting on Confirm. hexId 0 is the frame. */
+type Choice = { kind: 'buy' } | { kind: 'build'; hexId: number };
+
 /**
  * Client-side handler for the Action Phase.
  *
- * The turn is two clicks, sometimes three:
+ * Three steps, and the middle one shows EVERY option at once:
  *
  *   1. pick a disc still on the market track
- *   2. choose Buy Shares or Build Tracks — skipped when only one action tile is left, which is
- *      always the case on a player's second turn of the round
- *   3. for Build, pick a legal hex (or the company's frame, if it has nowhere to go)
+ *   2. the disc's whole set of options lights up together — Buy Shares as a button, and every legal
+ *      build hex (or the company's frame, when it is blocked) highlighted and clickable. The market
+ *      track stays live too, so the player can swap disc without backing out first
+ *   3. picking one holds it and asks for Confirm. The other build spaces stay live, so a pending
+ *      build moves to a different space in one click; Cancel drops all the way back to step 1
+ *
+ * Showing buy and build side by side rather than behind an action menu is the point: which disc is
+ * worth taking depends on where it could be built, so the player should not have to commit to an
+ * action to find out.
  *
  * Legality is decided by the server and arrives in the state args; nothing here re-derives it. The
- * highlight classes (`is-selectable`) already exist in the SCSS.
+ * highlight classes (`is-selectable`, `is-selected`) already exist in the SCSS.
  */
 export class PlayerTurn {
     private args: PlayerTurnArgs | null = null;
-    private selectedDiscId: number | null = null;
+    private discId: number | null = null;
+    private choice: Choice | null = null;
     /** Listeners attached this turn, torn down together on leaving the state. */
     private cleanup: (() => void)[] = [];
 
@@ -24,7 +34,6 @@ export class PlayerTurn {
 
     onEnteringState(args: PlayerTurnArgs, isCurrentPlayerActive: boolean) {
         this.args = args;
-        this.selectedDiscId = null;
 
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} must take a disc from the market track'));
@@ -34,86 +43,152 @@ export class PlayerTurn {
     }
 
     onLeavingState(_args: PlayerTurnArgs, _isCurrentPlayerActive: boolean) {
-        this.clearSelection();
+        this.reset();
         this.args = null;
     }
 
-    // ── Step 1: choose a disc ─────────────────────────────────────────────────────────────────
+    // ── Step 1: pick a disc ───────────────────────────────────────────────────────────────────
 
     private promptForDisc(): void {
-        this.clearSelection();
-        this.selectedDiscId = null;
+        this.reset();
         this.bga.statusBar.setTitle(_('${you} must take a disc from the market track'));
+        this.offerDiscs();
+    }
 
+    /** Every disc still on the track, clickable. Live in step 2 as well, so a swap costs one click. */
+    private offerDiscs(): void {
         for (const disc of this.args!.market) {
             const cell = this.marketCell(Number(disc.slot));
             if (!cell) continue;
+            if (Number(disc.id) === this.discId) {
+                cell.classList.add('is-selected');
+                continue;
+            }
             cell.classList.add('is-selectable');
-            this.on(cell, () => this.onDiscPicked(Number(disc.id)));
+            this.on(cell, () => this.selectDisc(Number(disc.id)));
         }
     }
 
-    private onDiscPicked(discId: number): void {
-        this.selectedDiscId = discId;
-        this.clearSelection();
+    // ── Step 2: show every option for that disc ───────────────────────────────────────────────
 
-        const { canBuy, canBuild } = this.args!;
-        if (canBuy && !canBuild) return this.chooseBuy();
-        if (canBuild && !canBuy) return this.promptForHex();
-
-        // First turn of the round: both tiles still in hand, so the player picks.
-        this.bga.statusBar.setTitle(_('${you} must choose an action for this disc'));
-        this.bga.statusBar.addActionButton(_('Buy Shares'), () => this.chooseBuy());
-        this.bga.statusBar.addActionButton(_('Build Tracks'), () => this.promptForHex());
-        this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
+    private selectDisc(discId: number): void {
+        this.discId = discId;
+        this.choice = null;
+        this.showOptions();
     }
 
-    // ── Step 2a: Buy Shares ───────────────────────────────────────────────────────────────────
+    private showOptions(): void {
+        this.clear();
 
-    private chooseBuy(): void {
-        this.clearSelection();
-        this.bga.actions.performAction('actBuyShare', { discId: this.selectedDiscId });
-    }
-
-    // ── Step 2b: Build Tracks ─────────────────────────────────────────────────────────────────
-
-    private promptForHex(): void {
-        this.clearSelection();
-
-        const disc = this.args!.market.find((d) => Number(d.id) === this.selectedDiscId);
+        const disc = this.heldDisc();
         if (!disc) return this.promptForDisc();
 
-        // A company with nowhere legal to build goes on its frame instead, for -1.
-        if (this.args!.blocked[disc.company]) {
-            this.bga.statusBar.setTitle(
-                _('${you} cannot build this company anywhere — place it on its frame for -1'),
-            );
-            const frame = this.frameElement(disc.company);
-            if (frame) {
-                frame.classList.add('is-selectable');
-                this.on(frame, () => this.build(0));
-            }
-            this.bga.statusBar.addActionButton(_('Place on frame'), () => this.build(0));
-            this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
-            return;
+        const { canBuy, canBuild } = this.args!;
+        const blocked = !!this.args!.blocked[disc.company];
+
+        this.bga.statusBar.setTitle(this.optionsTitle(canBuy, canBuild, blocked));
+        this.offerDiscs();
+
+        if (canBuy) {
+            this.bga.statusBar.addActionButton(_('Buy Shares'), () => this.choose({ kind: 'buy' }), {
+                color: 'primary',
+            });
         }
 
-        this.bga.statusBar.setTitle(_('${you} must choose a hex to build on'));
-        for (const hexId of this.args!.legalHexes[disc.company] ?? []) {
-            const hex = this.hexElement(Number(hexId));
-            if (!hex) continue;
-            hex.classList.add('is-selectable');
-            this.on(hex, () => this.build(Number(hexId)));
+        if (canBuild) {
+            this.offerBuildTargets(disc, null);
+            // A button as well as the piece, when the frame is the only build: it can be off the top
+            // of a scrolled board.
+            if (blocked) {
+                this.bga.statusBar.addActionButton(_('Place on frame'), () => this.choose({ kind: 'build', hexId: 0 }));
+            }
         }
+
         this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
     }
 
-    private build(hexId: number): void {
-        this.clearSelection();
-        this.bga.actions.performAction('actBuildTrack', { discId: this.selectedDiscId, hexId });
+    /**
+     * Light up every space the held disc may be built on — or the company's frame, when it has
+     * nowhere legal on the map and can only be placed there for -1.
+     *
+     * `chosen` is the space already picked this turn, if any: it is marked rather than made
+     * clickable, and the REST STAY LIVE. So moving a pending build to a different space is one
+     * click, with no trip back out through Cancel.
+     */
+    private offerBuildTargets(disc: MrMarketDisc, chosen: number | null): void {
+        const targets = this.args!.blocked[disc.company]
+            ? [0]
+            : (this.args!.legalHexes[disc.company] ?? []).map(Number);
+
+        for (const hexId of targets) {
+            const target = hexId === 0 ? this.frameElement(disc.company) : this.hexElement(hexId);
+            if (!target) continue;
+            if (hexId === chosen) {
+                target.classList.add('is-selected');
+                continue;
+            }
+            target.classList.add('is-selectable');
+            this.on(target, () => this.choose({ kind: 'build', hexId }));
+        }
+    }
+
+    private optionsTitle(canBuy: boolean, canBuild: boolean, blocked: boolean): string {
+        if (canBuy && canBuild) {
+            return blocked
+                ? _('${you} must buy shares, or place this company on its frame for -1')
+                : _('${you} must buy shares, or click a highlighted hex to build track');
+        }
+        if (canBuy) return _('${you} must buy shares with this disc');
+        return blocked
+            ? _('${you} cannot build this company anywhere — place it on its frame for -1')
+            : _('${you} must click a highlighted hex to build track');
+    }
+
+    // ── Step 3: confirm ───────────────────────────────────────────────────────────────────────
+
+    private choose(choice: Choice): void {
+        this.choice = choice;
+        this.clear();
+
+        const disc = this.heldDisc();
+        if (!disc) return this.promptForDisc();
+
+        // The disc and its destination both stay marked, so what is about to happen is on the board
+        // rather than only in the status bar. The build spaces NOT chosen stay clickable, so a
+        // pending build can be moved to another one directly.
+        this.marketCell(Number(disc.slot))?.classList.add('is-selected');
+        if (choice.kind === 'build') this.offerBuildTargets(disc, choice.hexId);
+
+        this.bga.statusBar.setTitle(this.confirmTitle(choice));
+        this.bga.statusBar.addActionButton(_('Confirm'), () => this.commit(), { color: 'primary' });
+        this.bga.statusBar.addActionButton(_('Cancel'), () => this.promptForDisc(), { color: 'secondary' });
+    }
+
+    private confirmTitle(choice: Choice): string {
+        if (choice.kind === 'buy') return _('${you} must confirm buying a share');
+        return choice.hexId === 0
+            ? _('${you} must confirm placing this disc on the frame for -1')
+            : _('${you} must confirm building on this hex');
+    }
+
+    private commit(): void {
+        const choice = this.choice;
+        const discId = this.discId;
+        if (!choice || discId === null) return;
+
+        this.reset();
+        if (choice.kind === 'buy') {
+            this.bga.actions.performAction('actBuyShare', { discId });
+        } else {
+            this.bga.actions.performAction('actBuildTrack', { discId, hexId: choice.hexId });
+        }
     }
 
     // ── DOM plumbing ──────────────────────────────────────────────────────────────────────────
+
+    private heldDisc(): MrMarketDisc | undefined {
+        return this.args!.market.find((d) => Number(d.id) === this.discId);
+    }
 
     private root(): HTMLElement {
         return this.bga.gameArea.getElement();
@@ -142,13 +217,20 @@ export class PlayerTurn {
         this.cleanup.push(() => el.removeEventListener('click', wrapped));
     }
 
-    /** Drop every highlight and listener from the current step. */
-    private clearSelection(): void {
+    /** Drop every highlight, listener and button from the current step. */
+    private clear(): void {
         for (const undo of this.cleanup) undo();
         this.cleanup = [];
-        for (const el of this.root().querySelectorAll('.is-selectable')) {
-            el.classList.remove('is-selectable');
+        for (const el of this.root().querySelectorAll('.is-selectable, .is-selected')) {
+            el.classList.remove('is-selectable', 'is-selected');
         }
         this.bga.statusBar.removeActionButtons();
+    }
+
+    /** clear(), and forget what the player had picked. */
+    private reset(): void {
+        this.clear();
+        this.discId = null;
+        this.choice = null;
     }
 }
