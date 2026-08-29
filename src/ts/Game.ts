@@ -1,11 +1,16 @@
 import { PlayerTurn } from "./States/PlayerTurn";
 import { renderBoard } from "./board";
+import { BgaZoom } from "./libs";
+
+/** Per-device zoom preference. Namespaced by project name, since localStorage is shared per origin. */
+const ZOOM_KEY = 'minirailsmospinach-zoom';
 
 export class Game {
     public bga: Bga<minirailsmospinachPlayer, minirailsmospinachGamedatas>;
     private gamedatas: minirailsmospinachGamedatas;
 
     private playerTurn: PlayerTurn;
+    private zoom: InstanceType<typeof BgaZoom.Manager> | null = null;
 
     constructor(bga: Bga<minirailsmospinachPlayer, minirailsmospinachGamedatas>) {
         console.log('minirailsmospinach constructor');
@@ -35,10 +40,44 @@ export class Game {
 
         // The board renders entirely from gamedatas. Only the ART is still a placeholder.
         this.refresh();
+        this.setupZoom();
 
         this.setupNotifications();
 
         console.log("Ending game setup");
+    }
+
+    /**
+     * Zoom controls — a magnifying glass with + and -, from BGA's own bga-zoom lib.
+     *
+     * Scoped to the MAP ALONE, not the whole game area: the map is the one thing that outgrows a
+     * screen, while the market track and the Profit Boards are read at a glance and want to stay
+     * put at full size while the map is scaled.
+     *
+     * Built once. #mr-map survives every redraw for exactly this reason (see board.ts), because the
+     * lib wraps the element it is given and then scales the wrapper.
+     *
+     * autoZoom does the first fit on its own: expectedWidth is the map's natural width, so a narrow
+     * window opens zoomed out far enough to show the whole board rather than cropping it. After
+     * that the player's own choice wins and is remembered per device.
+     */
+    private setupZoom(): void {
+        if (this.zoom) return;
+        const map = document.getElementById('mr-map');
+        if (!map) return;
+
+        this.zoom = new BgaZoom.Manager({
+            element: map,
+            // The default stops at 1, which is no use here: the placeholder hexes are small and
+            // legible, so zooming IN is the more likely want once the board fits.
+            zoomLevels: [0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.25, 1.5],
+            localStorageZoomKey: ZOOM_KEY,
+            autoZoom: {
+                // The map is (hex-w + gap) * 9.8 + hex-w wide — 797px at the default 72px hex.
+                expectedWidth: 800,
+                minZoomLevel: 0.375,
+            },
+        });
     }
 
     ///////////////////////////////////////////////////

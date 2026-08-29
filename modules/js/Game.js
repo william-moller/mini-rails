@@ -761,6 +761,22 @@ function renderProfitBoard(spec) {
  */
 const n = (v) => Number(v);
 /**
+ * A child that outlives a redraw, created on the first render and found by id after that.
+ *
+ * Only the frame of the board works this way — see renderBoard() for why the map host in particular
+ * has to survive. Their CONTENTS are still replaced wholesale every time.
+ */
+function persistent(parent, id, className) {
+    const existing = parent.querySelector(`#${id}`);
+    if (existing)
+        return existing;
+    const el = document.createElement('div');
+    el.id = id;
+    el.className = className;
+    parent.appendChild(el);
+    return el;
+}
+/**
  * Draw the whole board from gamedatas, replacing anything already there.
  *
  * A full redraw rather than incremental DOM updates: every component is still a CSS placeholder with
@@ -768,9 +784,13 @@ const n = (v) => Number(v);
  * way a pile of hand-written mutations can. Revisit when the art and animations land.
  */
 function renderBoard(container, gamedatas) {
-    container.querySelector('.mr-root')?.remove();
-    const root = document.createElement('div');
-    root.className = 'mr-root';
+    // These three elements PERSIST across redraws. bga-zoom wraps the map host once at setup and
+    // scales that wrapper, so rebuilding the host here would leave the zoom controls driving a
+    // detached node. Everything INSIDE each section is still thrown away and rebuilt from gamedatas,
+    // which is what keeps the board from drifting out of step with the server.
+    const root = persistent(container, 'mr-root', 'mr-root');
+    const mapHost = persistent(root, 'mr-map', 'mr-map');
+    const side = persistent(root, 'mr-side', 'mr-side');
     // ── Map ───────────────────────────────────────────────────────────────────────────────────
     // Discs built on hexes are keyed by hex_id, which is what disc.arg holds for the 'hex' zone.
     const discByHexId = new Map();
@@ -796,7 +816,7 @@ function renderBoard(container, gamedatas) {
         discs: gamedatas.discs.frame.filter((d) => d.company === fr.company).length,
     }));
     const board = renderHexBoard(specs, frameSpecs);
-    root.appendChild(board);
+    mapHost.replaceChildren(board);
     // ── Central Market Board ──────────────────────────────────────────────────────────────────
     const len = n(gamedatas.trackLength);
     const colorOf = (playerId) => {
@@ -842,7 +862,7 @@ function renderBoard(container, gamedatas) {
         marketTrack: trackSlots('market'),
         taxed,
     });
-    root.appendChild(market);
+    // Held for the swap below: market and Profit Boards go together, outside the zoomed map.
     // ── Profit Boards ─────────────────────────────────────────────────────────────────────────
     const profitBoards = document.createElement('div');
     profitBoards.className = 'mr-profit-boards';
@@ -859,13 +879,33 @@ function renderBoard(container, gamedatas) {
             buildSpent: n(player.buildSpent) === 1,
         }));
     }
-    root.appendChild(profitBoards);
-    container.appendChild(root);
+    side.replaceChildren(market, profitBoards);
     return { root, board, market, profitBoards };
 }
 
+/**
+ * BGA component libraries, fetched from BGA's own CDN at runtime.
+ *
+ * Loaded here and only here. importEsmLib() is a top-level await, so keeping the calls in one module
+ * means one load per lib no matter how many files use it, and the awaits do not spread through the
+ * rest of the source.
+ *
+ * ⚠️ components.ts must never import this file. It has to stay loadable by scripts/preview/ in a
+ * plain browser with no BGA globals, and importEsmLib is a BGA global.
+ *
+ * Typings are the bga-*.d.ts stubs at the repo root, published by BGA. They are dev-only and not in
+ * the deploy allowlist, so they never reach the server.
+ *
+ * bga-zoom: zoom controls (a magnifying glass with + and -) plus autoscale.
+ *   https://en.doc.boardgamearena.com/Zoom
+ */
+const BgaZoom = await importEsmLib('bga-zoom', '1.x');
+
+/** Per-device zoom preference. Namespaced by project name, since localStorage is shared per origin. */
+const ZOOM_KEY = 'minirailsmospinach-zoom';
 class Game {
     constructor(bga) {
+        this.zoom = null;
         console.log('minirailsmospinach constructor');
         this.bga = bga;
         // Declare the State classes
@@ -889,8 +929,42 @@ class Game {
         this.gamedatas = gamedatas;
         // The board renders entirely from gamedatas. Only the ART is still a placeholder.
         this.refresh();
+        this.setupZoom();
         this.setupNotifications();
         console.log("Ending game setup");
+    }
+    /**
+     * Zoom controls — a magnifying glass with + and -, from BGA's own bga-zoom lib.
+     *
+     * Scoped to the MAP ALONE, not the whole game area: the map is the one thing that outgrows a
+     * screen, while the market track and the Profit Boards are read at a glance and want to stay
+     * put at full size while the map is scaled.
+     *
+     * Built once. #mr-map survives every redraw for exactly this reason (see board.ts), because the
+     * lib wraps the element it is given and then scales the wrapper.
+     *
+     * autoZoom does the first fit on its own: expectedWidth is the map's natural width, so a narrow
+     * window opens zoomed out far enough to show the whole board rather than cropping it. After
+     * that the player's own choice wins and is remembered per device.
+     */
+    setupZoom() {
+        if (this.zoom)
+            return;
+        const map = document.getElementById('mr-map');
+        if (!map)
+            return;
+        this.zoom = new BgaZoom.Manager({
+            element: map,
+            // The default stops at 1, which is no use here: the placeholder hexes are small and
+            // legible, so zooming IN is the more likely want once the board fits.
+            zoomLevels: [0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.25, 1.5],
+            localStorageZoomKey: ZOOM_KEY,
+            autoZoom: {
+                // The map is (hex-w + gap) * 9.8 + hex-w wide — 797px at the default 72px hex.
+                expectedWidth: 800,
+                minZoomLevel: 0.375,
+            },
+        });
     }
     ///////////////////////////////////////////////////
     //// Utility methods

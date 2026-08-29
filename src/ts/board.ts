@@ -31,6 +31,23 @@ export interface BoardRefs {
 }
 
 /**
+ * A child that outlives a redraw, created on the first render and found by id after that.
+ *
+ * Only the frame of the board works this way — see renderBoard() for why the map host in particular
+ * has to survive. Their CONTENTS are still replaced wholesale every time.
+ */
+function persistent(parent: HTMLElement, id: string, className: string): HTMLElement {
+    const existing = parent.querySelector<HTMLElement>(`#${id}`);
+    if (existing) return existing;
+
+    const el = document.createElement('div');
+    el.id = id;
+    el.className = className;
+    parent.appendChild(el);
+    return el;
+}
+
+/**
  * Draw the whole board from gamedatas, replacing anything already there.
  *
  * A full redraw rather than incremental DOM updates: every component is still a CSS placeholder with
@@ -41,10 +58,13 @@ export function renderBoard(
     container: HTMLElement,
     gamedatas: minirailsmospinachGamedatas,
 ): BoardRefs {
-    container.querySelector('.mr-root')?.remove();
-
-    const root = document.createElement('div');
-    root.className = 'mr-root';
+    // These three elements PERSIST across redraws. bga-zoom wraps the map host once at setup and
+    // scales that wrapper, so rebuilding the host here would leave the zoom controls driving a
+    // detached node. Everything INSIDE each section is still thrown away and rebuilt from gamedatas,
+    // which is what keeps the board from drifting out of step with the server.
+    const root = persistent(container, 'mr-root', 'mr-root');
+    const mapHost = persistent(root, 'mr-map', 'mr-map');
+    const side = persistent(root, 'mr-side', 'mr-side');
 
     // ── Map ───────────────────────────────────────────────────────────────────────────────────
     // Discs built on hexes are keyed by hex_id, which is what disc.arg holds for the 'hex' zone.
@@ -73,7 +93,7 @@ export function renderBoard(
     }));
 
     const board = renderHexBoard(specs, frameSpecs);
-    root.appendChild(board);
+    mapHost.replaceChildren(board);
 
     // ── Central Market Board ──────────────────────────────────────────────────────────────────
     const len = n(gamedatas.trackLength);
@@ -121,7 +141,7 @@ export function renderBoard(
         marketTrack: trackSlots('market'),
         taxed,
     });
-    root.appendChild(market);
+    // Held for the swap below: market and Profit Boards go together, outside the zoomed map.
 
     // ── Profit Boards ─────────────────────────────────────────────────────────────────────────
     const profitBoards = document.createElement('div');
@@ -141,8 +161,6 @@ export function renderBoard(
             }),
         );
     }
-    root.appendChild(profitBoards);
-
-    container.appendChild(root);
+    side.replaceChildren(market, profitBoards);
     return { root, board, market, profitBoards };
 }

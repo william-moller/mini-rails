@@ -728,6 +728,21 @@
   color: #4e342e;
 }
 
+/*
+ * The two halves of the board, and the one structural rule behind them: ONLY the map zooms.
+ *
+ * bga-zoom wraps #mr-map and scales the wrapper, so anything that must not be scaled has to live
+ * outside it — hence #mr-side holding the market track and the Profit Boards. Both elements persist
+ * across redraws; see persistent() in src/ts/board.ts.
+ */
+.mr-map {
+  position: relative;
+}
+
+.mr-side {
+  margin-top: 12px;
+}
+
 .mr-profit-boards {
   display: flex;
   flex-wrap: wrap;
